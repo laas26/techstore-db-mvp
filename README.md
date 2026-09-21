@@ -4,29 +4,29 @@
 
 ---
 
-## 📋 Índice
+## 📋 Sumário
 
-- [Problemática Recebida](#-problemática-recebida)
-- [Análise do Problema](#-análise-do-problema)
-- [Proposta da Solução](#-proposta-da-solução)
-- [Arquitetura da Solução](#-arquitetura-da-solução)
-- [Tecnologias e Ferramentas](#-tecnologias-e-ferramentas)
-- [Justificativa Técnica](#-justificativa-técnica)
-- [Processo de Desenvolvimento](#-processo-de-desenvolvimento)
-- [Práticas DevOps](#-práticas-devops)
-- [Instruções de Execução](#-instruções-de-execução)
-- [Testes e Validações](#-testes-e-validações)
-- [Resultados Obtidos](#-resultados-obtidos)
-- [Limitações da Solução](#-limitações-da-solução)
-- [Possíveis Evoluções Futuras](#-possíveis-evoluções-futuras)
+- [Contexto e Desafio Negocial](#-contexto-e-desafio-negocial)
+- [Diagnóstico e Riscos Identificados](#-diagnóstico-e-riscos-identificados)
+- [Abordagem da Solução](#-abordagem-da-solução)
+- [Desenho de Arquitetura](#-desenho-de-arquitetura)
+- [Stack Tecnológica](#-stack-tecnológica)
+- [Racional Técnico e Decisões](#-racional-técnico-e-decisões)
+- [Organização e Estrutura do Código](#-organização-e-estrutura-do-código)
+- [Engenharia de Software e Cultura DevOps](#-engenharia-de-software-e-cultura-devops)
+- [Guia de Implantação e Execução](#-guia-de-implantação-e-execução)
+- [Estratégia de Testes e Validação](#-estratégia-de-testes-e-validação)
+- [Avaliação dos Resultados](#-avaliação-dos-resultados)
+- [Escopo do MVP e Restrições](#-escopo-do-mvp-e-restrições)
+- [Roadmap de Evolução](#-roadmap-de-evolução)
 
 ---
 
-## 🎯 Problemática Recebida
+## 🎯 Contexto e Desafio Negocial
 
 O desafio era garantir a persistência e a segurança de dados críticos, como utilizadores, autenticação e produtos, sem depender dos ciclos de vida efémeros dos contentores. Os dados precisam sobreviver a reinicializações, atualizações de serviços e até à destruição e recriação dos contentores.
 
-## 🔍 Análise do Problema
+## 🔍 Diagnóstico e Riscos Identificados
 
 Os principais riscos identificados foram:
 
@@ -34,7 +34,7 @@ Os principais riscos identificados foram:
 - Acoplamento entre aplicação e dados: se o contentor da API cai, os dados não podem cair junto com ele.
 - Necessidade de uma camada de dados segura e independente já no MVP, sem complexidade operacional excessiva.
 
-## 💡 Proposta da Solução
+## 💡Abordagem da Solução
 
 A solução usa um banco relacional (MariaDB) desacoplado da API, provisionado via Infraestrutura como Código (`docker-compose.yml`):
 
@@ -42,7 +42,7 @@ A solução usa um banco relacional (MariaDB) desacoplado da API, provisionado v
 - Na primeira inicialização, o backend cria o esquema e popula o banco automaticamente através de um seed idempotente, sem exigir nenhum comando manual.
 - Os segredos e credenciais ficam centralizados no Compose, com valores padrão embutidos e um `.env` opcional para personalização.
 
-## 🏗️ Arquitetura da Solução
+## 🏗️ Desenho de Arquitetura
 
 ```
 ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
@@ -69,7 +69,7 @@ Acesso rápido:
 - 🔌 API: <http://localhost:3002> · Health: <http://localhost:3002/health>
 - 👑 Admin: <http://localhost:3001/dashboard> · 👤 Cliente: <http://localhost:3001/client>
 
-## 🧰 Tecnologias e Ferramentas
+## 🧰 Stack Tecnológica
 
 | Camada    | Tecnologia                              |
 | --------- | --------------------------------------- |
@@ -79,14 +79,14 @@ Acesso rápido:
 | Infra     | Docker & Docker Compose                 |
 | Qualidade | Biome (lint/format), Vitest, Jest       |
 
-## ⚙️ Justificativa Técnica
+## ⚙️ Racional Técnico e Decisões
 
 - O MariaDB combinado com Docker Volumes garante independência de dados e resiliência: destruir e recriar contentores não apaga nada, já que o volume nomeado `db_data` só é removido com `docker compose down -v`.
 - O healthcheck junto com `depends_on: service_healthy` faz o backend só iniciar quando o banco está realmente pronto, eliminando condições de corrida.
 - O bootstrap automático (`backend/docker-entrypoint.sh`) executa `prisma db push` e o `seed.js` idempotente (upsert) a cada arranque, o que é seguro repetir e nunca duplica dados.
 - A autenticação por perfis usa JWT com `role` (`admin`/`user`); o frontend separa as áreas de forma que o admin vai para o painel de gestão e o cliente para a sua própria área, sem acesso cruzado.
 
-## 🧩 Processo de Desenvolvimento
+## 🧩 Organização e Estrutura do Código
 
 O foco foi a modularização e a construção de uma camada de dados segura para o MVP:
 
@@ -107,7 +107,7 @@ techstore-db-mvp/
 │   └── Dockerfile + nginx.conf
 ```
 
-## 🔄 Práticas DevOps
+## 🔄 Engenharia de Software e Cultura DevOps
 
 - Contentorização total: frontend, backend e banco funcionam como serviços declarativos.
 - Gestão de volumes persistentes usando um volume nomeado em vez de bind mount, o que evita fricção de permissões no Windows, Linux ou Mac e não polui o repositório.
@@ -115,7 +115,7 @@ techstore-db-mvp/
 - Arranque determinístico: primeiro o healthcheck do banco, depois a migração de esquema, o seed e só então a API.
 - Integração contínua via GitHub Actions: a cada push ou PR para a `main`, jobs independentes validam o backend (install, `prisma validate`, `db push` mais seed contra uma MariaDB de serviço, e Jest) e o frontend (install, Vitest, build de produção).
 
-## 🚀 Instruções de Execução
+## 🚀 Guia de Implantação e Execução
 
 ### Pré-requisitos
 
@@ -161,7 +161,7 @@ docker compose down                  # para tudo mantendo os dados
 docker compose down -v               # para tudo apagando os dados (volume)
 ```
 
-## ✅ Testes e Validações
+## ✅ Estratégia de Testes e Validação
 
 O teste de resiliência consiste em derrubar a infraestrutura e subi-la novamente, comprovando a retenção dos dados:
 
@@ -180,7 +180,7 @@ docker compose exec db mariadb -u techstore_user -ptechstore_password techstore_
 
 O resultado esperado é que as contagens sejam idênticas antes e depois. O seed idempotente (upsert) atualiza sem duplicar, e o volume `db_data` preserva tudo, incluindo os dados criados pelo utilizador.
 
-## 🏆 Resultados Obtidos
+## 🏆 Avaliação dos Resultados
 
 O MVP foi validado com sucesso:
 
@@ -189,13 +189,13 @@ O MVP foi validado com sucesso:
 - ✅ A separação de acessos por perfil (admin e cliente) funciona de ponta a ponta.
 - ✅ A configuração é zero obrigatória: tudo funciona sem `.env`, mas a personalização continua possível.
 
-## ⚠️ Limitações da Solução
+## ⚠️ Escopo do MVP e Restrições
 
 - O foco atual está no ambiente local orquestrado (máquina do desenvolvedor ou demonstração).
 - O `prisma db push` sincroniza o esquema a partir do `schema.prisma`, o que é adequado para o MVP mas não gera um histórico formal de migrações versionadas.
 - Os segredos padrão embutidos servem à demonstração; em produção é necessária uma gestão dedicada de segredos.
 
-## 🔮 Possíveis Evoluções Futuras
+## 🔮 Roadmap de Evolução
 
 - 💾 Backups automatizados em nuvem, com snapshots agendados do volume e política de retenção.
 - 🧬 Migrações de esquema versionadas (`prisma migrate`), com um pipeline de CI validando cada mudança.
