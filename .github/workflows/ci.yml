@@ -1,0 +1,128 @@
+# CI — validação contínua do MVP TechStore.
+#
+# O que esta pipeline garante a cada push/PR para a main:
+#  - backend e frontend instalam com Yarn de forma reproduzível (--frozen-lockfile);
+#  - o esquema Prisma é válido e o bootstrap do banco (db push + seed) funciona;
+#  - o frontend passa nos testes unitários e gera o build de produção.
+#
+# O que é NÃO-bloqueante (continue-on-error) e porquê:
+#  - `yarn lint` (ambos): o repo ainda não está 100% conforme ao Biome;
+#    tornar o lint bloqueante agora deixaria a pipeline permanentemente vermelha.
+#  - `yarn test` do backend: a suíte Jest está em manutenção (falhas de
+#    asserção/drift contra a API atual) — corre para dar visibilidade,
+#    sem bloquear o merge, até ser corrigida.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ==========================================
+  # Backend (Node.js + Express + Prisma)
+  # ==========================================
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      # Banco real para validar o bootstrap (db push + seed) e os testes.
+      mariadb:
+        image: mariadb:11
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword
+          MYSQL_DATABASE: techstore_v2
+          MYSQL_USER: techstore_user
+          MYSQL_PASSWORD: techstore_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+          --health-start-period=20s
+    env:
+      NODE_ENV: test
+      # Segredo fictício — apenas para a CI (nunca usar em produção).
+      JWT_SECRET: ci-only-secret-nao-usar-em-producao
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: techstore_user
+      DB_PASSWORD: techstore_password
+      DB_NAME: techstore_v2
+      DATABASE_URL: mysql://techstore_user:techstore_password@127.0.0.1:3306/techstore_v2
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20 com cache Yarn
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: backend/yarn.lock
+
+      - name: Instalar dependências (reproduzível)
+        run: yarn install --frozen-lockfile
+
+      - name: Validar esquema Prisma
+        run: npx prisma validate
+
+      - name: Gerar Prisma Client
+        run: npx prisma generate
+
+      # Reproduz o bootstrap do docker-entrypoint.sh contra o MariaDB do job.
+      - name: Sincronizar esquema (db push)
+        run: npx prisma db push --accept-data-loss
+
+      - name: Popular banco (seed idempotente)
+        run: yarn seed
+
+      - name: Testes Jest (não-bloqueante — suíte em manutenção)
+        run: yarn test
+        continue-on-error: true
+
+      - name: Lint Biome (não-bloqueante — repo ainda não conforme)
+        run: yarn lint
+        continue-on-error: true
+
+  # ==========================================
+  # Frontend (React + Vite)
+  # ==========================================
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20 com cache Yarn
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+
+      # --ignore-engines: @testing-library/jest-dom (dev, só testes) declara
+      # node>=22; o build Vite não o empacota (mesmo flag do Dockerfile).
+      - name: Instalar dependências (reproduzível)
+        run: yarn install --frozen-lockfile --ignore-engines
+
+      # NOTA: o script `yarn test` corre o Vitest em modo watch (interativo);
+      # na CI é obrigatório o modo `run` para terminar o processo.
+      - name: Testes Vitest
+        run: yarn vitest run
+
+      - name: Build de produção
+        run: yarn build
+
+      - name: Lint Biome (não-bloqueante — repo ainda não conforme)
+        run: yarn lint
+        continue-on-error: true
