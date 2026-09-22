@@ -36,7 +36,7 @@ Os principais riscos identificados foram:
 
 ## 💡 Proposta da Solução
 
-A solução usa um banco relacional (MariaDB) desacoplado da API, provisionado via Infraestrutura como Código (`docker-compose.yml`):
+A solução usa um banco relacional (PostgreSQL) desacoplado da API, provisionado via Infraestrutura como Código (`docker-compose.yml`):
 
 - O banco vive num serviço próprio (`db`), com ciclo de vida independente do backend e do frontend.
 - Na primeira inicialização, o backend cria o esquema e popula o banco automaticamente através de um seed idempotente, sem exigir nenhum comando manual.
@@ -46,22 +46,22 @@ A solução usa um banco relacional (MariaDB) desacoplado da API, provisionado v
 
 ```
 ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
-│   Frontend   │      │   Backend    │      │    MariaDB   │
+│   Frontend   │      │   Backend    │      │  PostgreSQL  │
 │ React + Vite │─────▶│ Node.js +    │─────▶│  Volume      │
 │  Nginx :8080 │ /api/│ Express +    │      │  persistente │
-│              │      │ Prisma :3000 │◀─────│  db_data     │
+│              │      │ Prisma :3000 │◀─────│  pg_data     │
 └──────────────┘      └──────────────┘      └──────────────┘
        │                      │                      │
        └──────── Vitrine ─────┴──── API REST ─────────┴── Dados ──
 ```
 
-O frontend (React + Vite), o backend (Node.js + JS) e o MariaDB estão conectados de forma isolada: cada camada é um serviço Docker independente, comunicando apenas pela rede interna do Compose.
+O frontend (React + Vite), o backend (Node.js + JS) e o PostgreSQL estão conectados de forma isolada: cada camada é um serviço Docker independente, comunicando apenas pela rede interna do Compose.
 
 | Serviço  | Imagem / Build       | Porta local | Destino interno |
 | -------- | -------------------- | ----------- | --------------- |
 | Frontend | `frontend/Dockerfile`| `3001`      | Nginx `:8080`   |
 | Backend  | `backend/Dockerfile` | `3002`      | API `:3000`     |
-| Banco    | `mariadb:11`         | `3306`      | MariaDB `:3306` |
+| Banco    | `postgres:15`         | `5434`      | PostgreSQL `:5432` |
 
 Acesso rápido:
 
@@ -75,15 +75,15 @@ Acesso rápido:
 | --------- | --------------------------------------- |
 | Frontend  | React 19, React Router 7, Vite          |
 | Backend   | Node.js 20, Express 5, Prisma 6 (ORM)   |
-| Banco     | MariaDB 11                              |
+| Banco     | PostgreSQL 15                           |
 | Infra     | Docker & Docker Compose                 |
 | Qualidade | Biome (lint/format), Vitest, Jest       |
 
 ## ⚙️ Justificativa Técnica
 
-- O MariaDB combinado com Docker Volumes garante independência de dados e resiliência: destruir e recriar contentores não apaga nada, já que o volume nomeado `db_data` só é removido com `docker compose down -v`.
+- O PostgreSQL combinado com Docker Volumes garante independência de dados e resiliência: destruir e recriar contentores não apaga nada, já que o volume nomeado `pg_data` só é removido com `docker compose down -v`.
 - O healthcheck junto com `depends_on: service_healthy` faz o backend só iniciar quando o banco está realmente pronto, eliminando condições de corrida.
-- O bootstrap automático (`backend/docker-entrypoint.sh`) executa `prisma db push` e o `seed.js` idempotente (upsert) a cada arranque, o que é seguro repetir e nunca duplica dados.
+- O bootstrap automático (`backend/entrypoint.sh`) executa `prisma db push` e o `seed.js` idempotente (upsert) a cada arranque, o que é seguro repetir e nunca duplica dados.
 - A autenticação por perfis usa JWT com `role` (`admin`/`user`); o frontend separa as áreas de forma que o admin vai para o painel de gestão e o cliente para a sua própria área, sem acesso cruzado.
 
 ## 🧩 Processo de Desenvolvimento
@@ -93,12 +93,12 @@ O foco foi a modularização e a construção de uma camada de dados segura para
 ```
 techstore-db-mvp/
 ├── docker-compose.yml          # Infraestrutura como Código
-├── .github/workflows/ci.yml    # Pipeline CI (build, testes, seed + MariaDB)
+├── .github/workflows/ci.yml    # Pipeline CI (build, testes, seed + PostgreSQL)
 ├── backend/
 │   ├── src/                    # controllers, services, repositories, routes, middlewares
 │   ├── prisma/schema.prisma    # Fonte da verdade do esquema
 │   ├── scripts/seed.js         # Seed idempotente (2 utilizadores + 8 produtos)
-│   ├── docker-entrypoint.sh    # Bootstrap: wait → db push → seed → start
+│   ├── entrypoint.sh           # Bootstrap: wait → db push → seed → dev
 │   └── Dockerfile
 ├── frontend/
 │   ├── src/routes/             # AppRoutes, AdminRoute, ClientRoute
@@ -113,14 +113,14 @@ techstore-db-mvp/
 - Gestão de volumes persistentes usando um volume nomeado em vez de bind mount, o que evita fricção de permissões no Windows, Linux ou Mac e não polui o repositório.
 - Configuração por ambiente com padrões seguros, usando `${VAR:-padrão}` no Compose, personalizável via `.env` e funcional mesmo sem ele.
 - Arranque determinístico: primeiro o healthcheck do banco, depois a migração de esquema, o seed e só então a API.
-- Integração contínua via GitHub Actions: a cada push ou PR para a `main`, jobs independentes validam o backend (install, `prisma validate`, `db push` mais seed contra uma MariaDB de serviço, e Jest) e o frontend (install, Vitest, build de produção).
+- Integração contínua via GitHub Actions: a cada push ou PR para a `main`, jobs independentes validam o backend (install, `prisma validate`, `db push` mais seed contra um PostgreSQL de serviço, e Jest) e o frontend (install, Vitest, build de produção).
 
 ## 🚀 Instruções de Execução
 
 ### Pré-requisitos
 
 - Docker + Docker Compose (v2+)
-- Portas livres: `3001`, `3002`, `3306`
+- Portas livres: `3001`, `3002`, `5434` (mapeamento host do Postgres → `5432` interno)
 
 ### Passo a passo
 
@@ -174,11 +174,11 @@ docker compose down
 docker compose up -d
 
 # 4. Confirmar: mesmos utilizadores, mesmos produtos, zero duplicados
-docker compose exec db mariadb -u techstore_user -ptechstore_password techstore_v2 \
-  -e "SELECT COUNT(*) AS usuarios, (SELECT COUNT(*) FROM produtos) AS produtos FROM usuarios;"
+docker compose exec db psql -U techstore_user -d techstore_v2 \
+  -c "SELECT (SELECT COUNT(*) FROM usuarios) AS usuarios, (SELECT COUNT(*) FROM produtos) AS produtos;"
 ```
 
-O resultado esperado é que as contagens sejam idênticas antes e depois. O seed idempotente (upsert) atualiza sem duplicar, e o volume `db_data` preserva tudo, incluindo os dados criados pelo utilizador.
+O resultado esperado é que as contagens sejam idênticas antes e depois. O seed idempotente (upsert) atualiza sem duplicar, e o volume `pg_data` preserva tudo, incluindo os dados criados pelo utilizador.
 
 ## 🏆 Resultados Obtidos
 
@@ -199,7 +199,7 @@ O MVP foi validado com sucesso:
 
 - 💾 Backups automatizados em nuvem, com snapshots agendados do volume e política de retenção.
 - 🧬 Migrações de esquema versionadas (`prisma migrate`), com um pipeline de CI validando cada mudança.
-- 🌐 Alta disponibilidade, com réplicas de leitura no MariaDB, múltiplas instâncias da API e monitorização e observabilidade.
+- 🌐 Alta disponibilidade, com réplicas de leitura no PostgreSQL, múltiplas instâncias da API e monitorização e observabilidade.
 
 ---
 

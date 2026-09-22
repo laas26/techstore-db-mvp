@@ -1,4 +1,4 @@
-// Centraliza a persistência de carrinhos no MariaDB usando Prisma.
+// Centraliza a persistência de carrinhos no PostgreSQL usando Prisma.
 const { prisma } = require("../database/connection");
 
 async function buscarPorUsuarioId(usuarioId) {

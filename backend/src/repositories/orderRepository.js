@@ -1,4 +1,4 @@
-// Centraliza a persistência de pedidos no MariaDB usando Prisma.
+// Centraliza a persistência de pedidos no PostgreSQL usando Prisma.
 const { prisma } = require("../database/connection");
 
 async function criarPedido(dadosPedido) {

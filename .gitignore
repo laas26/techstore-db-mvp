@@ -147,7 +147,7 @@ vite.config.ts.timestamp-*
 .vite/
 
 # Dados locais do MariaDB (bind mount legado ./banco_dados).
-# O compose atual usa volume nomeado db_data — esta pasta não deve ser versionada.
+# O compose atual usa volume nomeado pg_data — esta pasta não deve ser versionada.
 banco_dados/
 
 # Added by ggshield
