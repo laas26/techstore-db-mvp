@@ -1,0 +1,4 @@
+# Shell scripts precisam de LF: o container Linux (Alpine/Debian) quebra com CRLF
+# (ex.: "set: illegal option -e"). Sem isto, um clone no Windows com
+# core.autocrlf=true corromperia o entrypoint no bind mount.
+*.sh text eol=lf

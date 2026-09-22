@@ -31,17 +31,16 @@ jobs:
         working-directory: backend
     services:
       # Banco real para validar o bootstrap (db push + seed) e os testes.
-      mariadb:
-        image: mariadb:11
+      postgres:
+        image: postgres:15
         env:
-          MYSQL_ROOT_PASSWORD: rootpassword
-          MYSQL_DATABASE: techstore_v2
-          MYSQL_USER: techstore_user
-          MYSQL_PASSWORD: techstore_password
+          POSTGRES_DB: techstore_v2
+          POSTGRES_USER: techstore_user
+          POSTGRES_PASSWORD: techstore_password
         ports:
-          - 3306:3306
+          - 5432:5432
         options: >-
-          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-cmd="pg_isready -U techstore_user -d techstore_v2"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -51,11 +50,11 @@ jobs:
       # Segredo fictício — apenas para a CI (nunca usar em produção).
       JWT_SECRET: ci-only-secret-nao-usar-em-producao
       DB_HOST: 127.0.0.1
-      DB_PORT: 3306
+      DB_PORT: 5432
       DB_USER: techstore_user
       DB_PASSWORD: techstore_password
       DB_NAME: techstore_v2
-      DATABASE_URL: mysql://techstore_user:techstore_password@127.0.0.1:3306/techstore_v2
+      DATABASE_URL: postgresql://techstore_user:techstore_password@127.0.0.1:5432/techstore_v2
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
@@ -76,7 +75,7 @@ jobs:
       - name: Gerar Prisma Client
         run: npx prisma generate
 
-      # Reproduz o bootstrap do docker-entrypoint.sh contra o MariaDB do job.
+      # Reproduz o bootstrap do entrypoint.sh contra o PostgreSQL do job.
       - name: Sincronizar esquema (db push)
         run: npx prisma db push --accept-data-loss
 

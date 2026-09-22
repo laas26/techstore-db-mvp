@@ -16,11 +16,13 @@ RUN npx prisma generate
 
 # 5. Bootstrap automático: entrypoint aguarda o banco, faz db push + seed e inicia a API.
 # Permite `docker compose up -d` do zero sem comandos manuais.
-RUN chmod +x /app/docker-entrypoint.sh
+COPY entrypoint.sh ./
+RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 3000
 
-ENTRYPOINT ["sh", "/app/docker-entrypoint.sh"]
+ENTRYPOINT ["sh", "/app/entrypoint.sh"]
 
-# 6. Produção no compose: servidor sem nodemon. Para dev local use `yarn dev`.
-CMD ["yarn", "start"]
+# 6. Modo desenvolvimento no compose: nodemon com hot-reload sobre o bind mount ./backend.
+# Para subir sem hot-reload use `command: ["yarn", "start"]`.
+CMD ["yarn", "dev"]

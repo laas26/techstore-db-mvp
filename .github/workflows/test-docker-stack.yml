@@ -1,0 +1,103 @@
+# Smoke tests da stack completa (frontend + backend + PostgreSQL).
+#
+# Objetivo: provar que apenas `docker compose up -d --build` entrega o projeto
+# pronto para uso — o entrypoint.sh do backend espera o banco, roda
+# `prisma db push`, popula o banco com o seed idempotente (scripts/seed.js)
+# e só então sobe a API em modo dev (nodemon).
+#
+# O que é validado aqui:
+#  1. Frontend (Nginx) responde 200 OK na porta 3001;
+#  2. API do backend responde 200 OK em GET /api/produtos (porta 3002);
+#  3. O JSON de produtos vem populado pelo seed (array não vazio).
+#
+# Em caso de falha, os logs dos containers são anexados ao job para diagnóstico.
+
+name: Smoke Tests da Stack Docker
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+jobs:
+  smoke-test-stack:
+    name: Sobe a stack e valida frontend, API e seed
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      # Build das imagens + arranque: db (healthcheck) -> backend (entrypoint:
+      # db push + seed) -> frontend. Nenhum comando manual é executado.
+      - name: Subir a stack completa (docker compose up -d --build)
+        run: docker compose up -d --build
+
+      # Aguarda o bootstrap terminar: healthcheck do PostgreSQL + prisma db push +
+      # seed do entrypoint.sh. Em vez de um sleep fixo, tenta até 5 minutos para
+      # absorver a variação de tempo de build do runner.
+      - name: Aguardar containers saudáveis e bootstrap do entrypoint.sh
+        run: |
+          echo "⏳ Aguardando entrypoint.sh concluir db push + seed..."
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3001/ >/dev/null \
+              && curl -sf http://localhost:3002/api/produtos >/dev/null; then
+              echo "✅ Stack pronta após ${i} tentativa(s)."
+              exit 0
+            fi
+            echo "  ...tentativa ${i}/60 ainda não pronta"
+            sleep 5
+          done
+          echo "::error::Stack não ficou pronta em 300s."
+          exit 1
+
+      - name: "Smoke test 1 — Frontend responde 200 OK (porta 3001)"
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/)
+          echo "GET http://localhost:3001/ -> ${code}"
+          if [ "${code}" != "200" ]; then
+            echo "::error::Frontend não respondeu 200 OK (recebido: ${code})."
+            exit 1
+          fi
+
+      - name: "Smoke test 2 — API de produtos responde 200 OK (porta 3002)"
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3002/api/produtos)
+          echo "GET http://localhost:3002/api/produtos -> ${code}"
+          if [ "${code}" != "200" ]; then
+            echo "::error::API de produtos não respondeu 200 OK (recebido: ${code})."
+            exit 1
+          fi
+
+      - name: "Smoke test 3 — Produtos semeados pelo seed.js presentes no JSON"
+        run: |
+          corpo=$(curl -s http://localhost:3002/api/produtos)
+          echo "Resposta da API:"
+          echo "${corpo}" | jq .
+
+          # O endpoint deve devolver um array com elementos.
+          if ! echo "${corpo}" | jq -e 'type == "array" and length > 0' >/dev/null; then
+            echo "::error::GET /api/produtos não retornou um array não vazio — seed não aplicado?"
+            exit 1
+          fi
+
+          total=$(echo "${corpo}" | jq 'length')
+          echo "✅ Produtos retornados pelo seed: ${total}"
+
+          # O seed.js insere 8 produtos; exige ao menos 1 para detectar seed faltoso.
+          if [ "${total}" -lt 1 ]; then
+            echo "::error::Seed não populou nenhum produto."
+            exit 1
+          fi
+
+      # Sempre que qualquer passo falhar, expõe o estado e os logs para diagnóstico.
+      - name: Diagnóstico — logs dos containers
+        if: failure()
+        run: |
+          echo "==== docker compose ps ===="
+          docker compose ps -a || true
+          echo "==== docker compose logs (últimas 300 linhas por serviço) ===="
+          docker compose logs --tail=300 db backend frontend || true

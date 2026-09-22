@@ -41,10 +41,6 @@ build/Release
 node_modules/
 jspm_packages/
 
-# Gestor de pacotes padrão: Yarn. Travar o npm evita lockfiles mistos.
-package-lock.json
-npm-shrinkwrap.json
-
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
@@ -145,16 +141,3 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
-
-# Dados locais do MariaDB (bind mount legado ./banco_dados).
-# O compose atual usa volume nomeado db_data — esta pasta não deve ser versionada.
-banco_dados/
-
-# Added by ggshield
-.cache_ggshield
-
-/generated/prisma
-
-/generated/prisma
-
-/generated/prisma

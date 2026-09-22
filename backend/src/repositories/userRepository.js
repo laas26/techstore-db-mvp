@@ -1,4 +1,4 @@
-// Centraliza a persistência de usuários no MariaDB usando Prisma.
+// Centraliza a persistência de usuários no PostgreSQL usando Prisma.
 const { prisma } = require("../database/connection");
 
 class EmailJaCadastradoError extends Error {}
