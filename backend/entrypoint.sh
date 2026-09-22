@@ -14,6 +14,23 @@ else
   echo "🔧 DATABASE_URL respeitada do ambiente (host: ${DB_HOST:-db})"
 fi
 
+# Segredo de sessão: prioriza o ambiente; se vier vazio, usa o arquivo local
+# ou gera um novo na primeira subida — nada de segredo versionado no repositório.
+if [ -z "${JWT_SECRET:-}" ]; then
+  JWT_FILE="./.jwt_secret"
+  if [ -s "$JWT_FILE" ]; then
+    JWT_SECRET=$(cat "$JWT_FILE")
+    echo "🔑 Segredo de sessao carregado do arquivo local"
+  else
+    JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+    printf '%s' "$JWT_SECRET" > "$JWT_FILE"
+    echo "🔑 Novo segredo de sessao gerado e guardado localmente"
+  fi
+  export JWT_SECRET
+else
+  echo "🔑 Segredo de sessao definido no ambiente"
+fi
+
 echo "⏳ Gerando Prisma Client a partir do schema atual..."
 # Regenera o client a cada boot: protege contra cliente desatualizado
 # (bind mount do ./backend + volume anonimo de node_modules podem ficar

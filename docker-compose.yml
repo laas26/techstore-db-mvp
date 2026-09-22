@@ -48,7 +48,9 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - JWT_SECRET=${JWT_SECRET:-db70787f15dbe42370a438e165894d14371321f491de60fa8bcafcce9693e177}
+      # Segredo de sessão sem valor literal no versionado: quando vazio, o
+      # entrypoint gera um na primeira subida e guarda em arquivo local.
+      - JWT_SECRET=${JWT_SECRET:-}
       - DB_HOST=db
       - DB_USER=${DB_USER:-techstore_user}
       - DB_PASSWORD=${DB_PASSWORD:-techstore_password}
