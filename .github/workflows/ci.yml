@@ -1,24 +1,22 @@
-# CI — validação contínua do MVP TechStore.
+# ==============================================================================
+# CI — Validação Contínua do MVP TechStore
 #
-# O que esta pipeline garante a cada push/PR para a main:
-#  - backend e frontend instalam com Yarn de forma reproduzível (--frozen-lockfile);
-#  - o esquema Prisma é válido e o bootstrap do banco (db push + seed) funciona;
-#  - o frontend passa nos testes unitários e gera o build de produção.
-#
-# O que é NÃO-bloqueante (continue-on-error) e porquê:
-#  - `yarn lint` (ambos): o repo ainda não está 100% conforme ao Biome;
-#    tornar o lint bloqueante agora deixaria a pipeline permanentemente vermelha.
-#  - `yarn test` do backend: a suíte Jest está em manutenção (falhas de
-#    asserção/drift contra a API atual) — corre para dar visibilidade,
-#    sem bloquear o merge, até ser corrigida.
+# Propósito:
+#   Garantir a qualidade do código-fonte a cada push/PR para main ou develop.
+#   - Backend: Valida esquema do Prisma, executa bootstrap (db push + seed) contra
+#     PostgreSQL e roda a suíte de testes e linter.
+#   - Frontend: Instala dependências, roda testes unitários (Vitest), gera o build
+#     de produção e valida o código com Biome.
+# ==============================================================================
 
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
+  workflow_dispatch:
 
 jobs:
   # ==========================================
@@ -30,7 +28,6 @@ jobs:
       run:
         working-directory: backend
     services:
-      # Banco real para validar o bootstrap (db push + seed) e os testes.
       postgres:
         image: postgres:15
         env:
@@ -45,9 +42,10 @@ jobs:
           --health-timeout=5s
           --health-retries=5
           --health-start-period=20s
+
+    # Credenciais fictícias (mock) exclusivas do CI efémero — usar GitHub Secrets em produção.
     env:
       NODE_ENV: test
-      # Segredo fictício — apenas para a CI (nunca usar em produção).
       JWT_SECRET: ci-only-secret-nao-usar-em-producao
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
@@ -55,6 +53,7 @@ jobs:
       DB_PASSWORD: techstore_password
       DB_NAME: techstore_v2
       DATABASE_URL: postgresql://techstore_user:techstore_password@127.0.0.1:5432/techstore_v2
+
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
@@ -75,7 +74,6 @@ jobs:
       - name: Gerar Prisma Client
         run: npx prisma generate
 
-      # Reproduz o bootstrap do entrypoint.sh contra o PostgreSQL do job.
       - name: Sincronizar esquema (db push)
         run: npx prisma db push --accept-data-loss
 
@@ -109,13 +107,9 @@ jobs:
           cache: yarn
           cache-dependency-path: frontend/yarn.lock
 
-      # --ignore-engines: @testing-library/jest-dom (dev, só testes) declara
-      # node>=22; o build Vite não o empacota (mesmo flag do Dockerfile).
       - name: Instalar dependências (reproduzível)
         run: yarn install --frozen-lockfile --ignore-engines
 
-      # NOTA: o script `yarn test` corre o Vitest em modo watch (interativo);
-      # na CI é obrigatório o modo `run` para terminar o processo.
       - name: Testes Vitest
         run: yarn vitest run
 
