@@ -1,206 +1,102 @@
 # TechStore - MVP de Persistência e Gestão de Dados
 
-> Loja demo com dados que sobrevivem à infraestrutura.
+> Aplicação web com arquitetura resiliente onde os dados sobrevivem à destruição e reinicialização dos contêineres.
+
+[![CI Pipeline](https://github.com/laas26/techstore-db-mvp/actions/workflows/ci.yml/badge.svg)](https://github.com/laas26/techstore-db-mvp/actions) ![Version](https://img.shields.io/badge/version-1.0.0--mvp-000000?style=flat)
 
 ---
 
-## 📋 Sumário
+## 🎯 O Problema & A Solução
 
-- [Contexto e Desafio Negocial](#-contexto-e-desafio-negocial)
-- [Diagnóstico e Riscos Identificados](#-diagnóstico-e-riscos-identificados)
-- [Abordagem da Solução](#-abordagem-da-solução)
-- [Desenho de Arquitetura](#-desenho-de-arquitetura)
-- [Stack Tecnológica](#-stack-tecnológica)
-- [Racional Técnico e Decisões](#-racional-técnico-e-decisões)
-- [Organização e Estrutura do Código](#-organização-e-estrutura-do-código)
-- [Engenharia de Software e Cultura DevOps](#-engenharia-de-software-e-cultura-devops)
-- [Guia de Implantação e Execução](#-guia-de-implantação-e-execução)
-- [Estratégia de Testes e Validação](#-estratégia-de-testes-e-validação)
-- [Avaliação dos Resultados](#-avaliação-dos-resultados)
-- [Escopo do MVP e Restrições](#-escopo-do-mvp-e-restrições)
-- [Roadmap de Evolução](#-roadmap-de-evolução)
+O desafio principal era garantir a persistência e a resiliência de dados críticos (usuários, autenticação, produtos) sem depender do ciclo de vida efémero dos contêineres.
+
+**Solução:** Isolamento da camada de dados em um serviço dedicado com volume persistente nomeado, orquestração com arranque determinístico (healthcheck) e rotina de bootstrap automática e idempotente (criação de esquema e seed sem duplicação de dados).
 
 ---
 
-## 🎯 Contexto e Desafio Negocial
+##  🏗️ Arquitetura e Stack
 
-O desafio era garantir a persistência e a segurança de dados críticos, como utilizadores, autenticação e produtos, sem depender dos ciclos de vida efémeros dos contentores. Os dados precisam sobreviver a reinicializações, atualizações de serviços e até à destruição e recriação dos contentores.
-
-## 🔍 Diagnóstico e Riscos Identificados
-
-Os principais riscos identificados foram:
-
-- Perda de informação com ficheiros voláteis em reinicializações ou atualizações de serviços.
-- Acoplamento entre aplicação e dados: se o contentor da API cai, os dados não podem cair junto com ele.
-- Necessidade de uma camada de dados segura e independente já no MVP, sem complexidade operacional excessiva.
-
-## 💡Abordagem da Solução
-
-A solução usa um banco relacional (PostgreSQL) desacoplado da API, provisionado via Infraestrutura como Código (`docker-compose.yml`):
-
-- O banco vive num serviço próprio (`db`), com ciclo de vida independente do backend e do frontend.
-- Na primeira inicialização, o backend cria o esquema e popula o banco automaticamente através de um seed idempotente, sem exigir nenhum comando manual.
-- Os segredos e credenciais ficam centralizados no Compose, com valores padrão embutidos e um `.env` opcional para personalização.
-
-## 🏗️ Desenho de Arquitetura
-
+<div align="center">
+       
+```text
+ ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
+ │   Frontend   │      │   Backend    │      │  PostgreSQL  │
+ │ React + Vite │─────▶│ Node.js +    │─────▶│  Volume     │
+ │  Nginx :8080 │ /api/│ Express +    │      │  persistente │
+ │              │      │ Prisma :3000 │◀─────│  pg_data    │
+ └──────────────┘      └──────────────┘      └──────────────┘
+        │                     │                     │
+        └──────── Vitrine ────┴─── API REST ────────┴── Dados ──
 ```
-┌──────────────┐      ┌──────────────┐      ┌──────────────┐
-│   Frontend   │      │   Backend    │      │  PostgreSQL  │
-│ React + Vite │─────▶│ Node.js +    │─────▶│  Volume      │
-│  Nginx :8080 │ /api/│ Express +    │      │  persistente │
-│              │      │ Prisma :3000 │◀─────│  pg_data     │
-└──────────────┘      └──────────────┘      └──────────────┘
-       │                      │                      │
-       └──────── Vitrine ─────┴──── API REST ─────────┴── Dados ──
-```
+</div>
 
-O frontend (React + Vite), o backend (Node.js + JS) e o PostgreSQL estão conectados de forma isolada: cada camada é um serviço Docker independente, comunicando apenas pela rede interna do Compose.
+| Camada | Tecnologia | Porta Local | Servidor Interno |
+| :--- | :--- | :--- | :--- |
+| **Frontend** | ![React](https://img.shields.io/badge/React_19-000000?style=flat&logo=react&logoColor=white) ![React Router](https://img.shields.io/badge/React_Router_7-000000?style=flat&logo=react-router&logoColor=white) ![Vite](https://img.shields.io/badge/Vite-000000?style=flat&logo=vite&logoColor=white) | `3001` | Nginx `:8080` |
+| **Backend** | ![NodeJS](https://img.shields.io/badge/Node.js_20-000000?style=flat&logo=node.js&logoColor=white) ![Express](https://img.shields.io/badge/Express_5-000000?style=flat&logo=express&logoColor=white) ![Prisma](https://img.shields.io/badge/Prisma_6-000000?style=flat&logo=prisma&logoColor=white) | `3002` | API Express `:3000` |
+| **Banco** | ![PostgreSQL](https://img.shields.io/badge/PostgreSQL_15-000000?style=flat&logo=postgresql&logoColor=white) | `5434` | Postgres `:5432` |
+| **Qualidade** | ![Biome](https://img.shields.io/badge/Biome-000000?style=flat&logo=biome&logoColor=white) ![Vitest](https://img.shields.io/badge/Vitest-000000?style=flat&logo=vitest&logoColor=white) ![Jest](https://img.shields.io/badge/Jest-000000?style=flat&logo=jest&logoColor=white) | - | - |
+| **Infra / CI** | ![Docker](https://img.shields.io/badge/Docker_Compose-000000?style=flat&logo=docker&logoColor=white) ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-000000?style=flat&logo=github-actions&logoColor=white) | - | - |
 
-| Serviço  | Imagem / Build       | Porta local | Destino interno |
-| -------- | -------------------- | ----------- | --------------- |
-| Frontend | `frontend/Dockerfile`| `3001`      | Nginx `:8080`   |
-| Backend  | `backend/Dockerfile` | `3002`      | API `:3000`     |
-| Banco    | `postgres:15`         | `5434`      | PostgreSQL `:5432` |
+---
 
-Acesso rápido:
-
-- 🛍️ Loja: <http://localhost:3001>
-- 🔌 API: <http://localhost:3002> · Health: <http://localhost:3002/health>
-- 👑 Admin: <http://localhost:3001/dashboard> · 👤 Cliente: <http://localhost:3001/client>
-
-## 🧰 Stack Tecnológica
-
-| Camada    | Tecnologia                              |
-| --------- | --------------------------------------- |
-| Frontend  | React 19, React Router 7, Vite          |
-| Backend   | Node.js 20, Express 5, Prisma 6 (ORM)   |
-| Banco     | PostgreSQL 15                           |
-| Infra     | Docker & Docker Compose                 |
-| Qualidade | Biome (lint/format), Vitest, Jest       |
-
-## ⚙️ Racional Técnico e Decisões
-
-- O PostgreSQL combinado com Docker Volumes garante independência de dados e resiliência: destruir e recriar contentores não apaga nada, já que o volume nomeado `pg_data` só é removido com `docker compose down -v`.
-- O healthcheck junto com `depends_on: service_healthy` faz o backend só iniciar quando o banco está realmente pronto, eliminando condições de corrida.
-- O bootstrap automático (`backend/entrypoint.sh`) executa `prisma db push` e o `seed.js` idempotente (upsert) a cada arranque, o que é seguro repetir e nunca duplica dados.
-- A autenticação por perfis usa JWT com `role` (`admin`/`user`); o frontend separa as áreas de forma que o admin vai para o painel de gestão e o cliente para a sua própria área, sem acesso cruzado.
-
-## 🧩 Organização e Estrutura do Código
-
-O foco foi a modularização e a construção de uma camada de dados segura para o MVP:
-
-```
-techstore-db-mvp/
-├── docker-compose.yml          # Infraestrutura como Código
-├── .github/workflows/ci.yml    # Pipeline CI (build, testes, seed + PostgreSQL)
-├── backend/
-│   ├── src/                    # controllers, services, repositories, routes, middlewares
-│   ├── prisma/schema.prisma    # Fonte da verdade do esquema
-│   ├── scripts/seed.js         # Seed idempotente (2 utilizadores + 8 produtos)
-│   ├── entrypoint.sh           # Bootstrap: wait → db push → seed → dev
-│   └── Dockerfile
-├── frontend/
-│   ├── src/routes/             # AppRoutes, AdminRoute, ClientRoute
-│   ├── src/context/            # AuthContext (eAdmin / eCliente)
-│   ├── src/utils/role.js       # Leitura centralizada da role
-│   └── Dockerfile + nginx.conf
-```
-
-## 🔄 Engenharia de Software e Cultura DevOps
-
-- Contentorização total: frontend, backend e banco funcionam como serviços declarativos.
-- Gestão de volumes persistentes usando um volume nomeado em vez de bind mount, o que evita fricção de permissões no Windows, Linux ou Mac e não polui o repositório.
-- Configuração por ambiente com padrões seguros, usando `${VAR:-padrão}` no Compose, personalizável via `.env` e funcional mesmo sem ele.
-- Arranque determinístico: primeiro o healthcheck do banco, depois a migração de esquema, o seed e só então a API.
-- Integração contínua via GitHub Actions: a cada push ou PR para a `main`, jobs independentes validam o backend (install, `prisma validate`, `db push` mais seed contra um PostgreSQL de serviço, e Jest) e o frontend (install, Vitest, build de produção).
-
-## 🚀 Guia de Implantação e Execução
+## 🚀 Como Executar
 
 ### Pré-requisitos
+* Docker + Docker Compose (v2+)
+* Portas livres: `3001`, `3002`, `5434`
 
-- Docker + Docker Compose (v2+)
-- Portas livres: `3001`, `3002`, `5434` (mapeamento host do Postgres → `5432` interno)
-
-### Passo a passo
+### Passo Único
 
 ```bash
-# 1. Clonar o repositório
+# 1. Clonar e acessar o repositório
 git clone https://github.com/laas26/techstore-db-mvp.git
 cd techstore-db-mvp
 
-# 2. (Opcional) Personalizar credenciais e segredos
-# Crie um ficheiro `.env` na raiz se quiser trocar os padrões
-# (ex.: DB_USER, DB_PASSWORD, DB_NAME, JWT_SECRET...)
-
-# 3. Subir tudo (build + arranque), sem nenhum comando manual extra
+# 2. Subir a aplicação (build + banco + migração + seed automáticos)
 docker compose up -d --build
-
-# 4. Acompanhar o bootstrap (schema + seed automáticos)
-docker compose logs -f backend
-# ✅ Seed executado com sucesso.
 ```
-
-Pronto: a loja fica disponível em <http://localhost:3001> e a API em <http://localhost:3002>.
-
-### Credenciais de demonstração (seed)
-
-| Perfil  | E-mail                    | Senha        | Destino após login |
-| ------- | ------------------------- | ------------ | ------------------ |
-| Admin   | `admin@techstore.local`   | `Admin@123`  | `/dashboard`       |
-| Cliente | `cliente@techstore.local` | `Cliente@123`| `/client`          |
-
-> ⚠️ Essas credenciais são exclusivas para desenvolvimento e demonstração. Nunca devem ser usadas em produção.
-
-### Comandos úteis
-
-```bash
-docker compose ps                    # estado dos serviços
-docker compose logs -f backend       # logs da API (inclui seed)
-docker compose down                  # para tudo mantendo os dados
-docker compose down -v               # para tudo apagando os dados (volume)
-```
-
-## ✅ Estratégia de Testes e Validação
-
-O teste de resiliência consiste em derrubar a infraestrutura e subi-la novamente, comprovando a retenção dos dados:
-
-```bash
-# 1. Criar evidência (ex.: um produto via UI) e anotar a contagem
-# 2. Derrubar a infraestrutura sem apagar volumes
-docker compose down
-
-# 3. Subir novamente
-docker compose up -d
-
-# 4. Confirmar: mesmos utilizadores, mesmos produtos, zero duplicados
-docker compose exec db psql -U techstore_user -d techstore_v2 \
-  -c "SELECT (SELECT COUNT(*) FROM usuarios) AS usuarios, (SELECT COUNT(*) FROM produtos) AS produtos;"
-```
-
-O resultado esperado é que as contagens sejam idênticas antes e depois. O seed idempotente (upsert) atualiza sem duplicar, e o volume `pg_data` preserva tudo, incluindo os dados criados pelo utilizador.
-
-## 🏆 Avaliação dos Resultados
-
-O MVP foi validado com sucesso:
-
-- ✅ `docker compose up -d --build` provisiona banco, esquema e dados do zero, sem comandos manuais.
-- ✅ Os dados sobrevivem a quedas de infraestrutura (`down`/`up`, restarts, rebuilds).
-- ✅ A separação de acessos por perfil (admin e cliente) funciona de ponta a ponta.
-- ✅ A configuração é zero obrigatória: tudo funciona sem `.env`, mas a personalização continua possível.
-
-## ⚠️ Escopo do MVP e Restrições
-
-- O foco atual está no ambiente local orquestrado (máquina do desenvolvedor ou demonstração).
-- O `prisma db push` sincroniza o esquema a partir do `schema.prisma`, o que é adequado para o MVP mas não gera um histórico formal de migrações versionadas.
-- Os segredos padrão embutidos servem à demonstração; em produção é necessária uma gestão dedicada de segredos.
-
-## 🔮 Roadmap de Evolução
-
-- 💾 Backups automatizados em nuvem, com snapshots agendados do volume e política de retenção.
-- 🧬 Migrações de esquema versionadas (`prisma migrate`), com um pipeline de CI validando cada mudança.
-- 🌐 Alta disponibilidade, com réplicas de leitura no PostgreSQL, múltiplas instâncias da API e monitorização e observabilidade.
 
 ---
 
-<p align="center">TechStore · MVP de Persistência e Gestão de Dados · Problemática 03</p>
+## 🔗 Links de Acesso
+
+* 🛍️ **Aplicação Web** ➔ http://localhost:3001
+* 🔌 **API Health** ➔ http://localhost:3002/health
+
+---
+
+## 🔑 Credenciais de Demonstração (Seed)
+
+| Perfil | E-mail | Senha | Rota Inicial |
+| :--- | :--- | :--- | :--- |
+| **Admin** | `admin@techstore.local` | `Admin@123` | `/dashboard` |
+| **Cliente** | `cliente@techstore.local` | `Cliente@123` | `/client` |
+
+---
+
+## 🧪 Validação de Resiliência (Teste Prático)
+
+Para testar a retenção de dados após derrubar a infraestrutura:
+
+```bash
+# 1. Derrube os serviços (sem remover os volumes)
+docker compose down
+
+# 2. Suba o ambiente novamente
+docker compose up -d
+
+# 3. Verifique a permanência dos dados no banco
+docker compose exec db psql -U techstore_user -d techstore_v2 \
+  -c "SELECT COUNT(*) FROM usuarios; SELECT COUNT(*) FROM produtos;"
+```
+---
+
+## 📑 Documentação & Materiais de Apresentação
+
+Todos os recursos técnicos e entregáveis exigidos para a avaliação do MVP estão disponíveis abaixo:
+
+* 📄 **[Documentação Técnica](./docs/DOCUMENTACAO_TECNICA.md)** ➔ Análise do problema, arquitetura detalhada, justificativas técnicas, cultura DevOps, limitações e roadmap.
+* 📊 **[Slides da Apresentação (PDF)](./docs/slides-apresentacao.pdf)** ➔ Estrutura visual e decisões de engenharia.
+---
+<p align="center">TechStore · MVP de Persistência e Gestão de Dados</p>

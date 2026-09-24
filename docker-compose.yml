@@ -17,19 +17,18 @@ services:
       POSTGRES_USER: ${DB_USER:-techstore_user}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-techstore_password}
     ports:
-      # 5434 na máquina host (a 5432 já está com outro projeto: pecusnet_db);
+      # 5434 na máquina host (a 5432 já está com outro projeto);
       # 5432 interno — é a porta que o backend usa via db:5432 na rede do compose
       - "5434:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     # Garante que o banco está totalmente pronto antes de liberar o backend
     healthcheck:
-      # $$ escapam a interpolação da compose: a variável é lida DENTRO do container
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+      test: 'pg_isready -U $$POSTGRES_USER -d$$POSTGRES_DB'
+      interval: 2s      # Checa a cada 2s em vez de 10s
+      timeout: 3s       # Resposta rápida se o socket falhar
+      retries: 10       # Mais tentativas para compensar o intervalo menor
+      start_period: 2s  # Começa a checar em 2s em vez de esperar 20s
     networks:
       - techstore_net
 
@@ -38,6 +37,7 @@ services:
   # ==========================================
   backend:
     build: ./backend
+    image: techstore-backend:latest
     container_name: techstore_backend
     restart: unless-stopped
     ports:
@@ -66,10 +66,6 @@ services:
         condition: service_healthy
     entrypoint: ["sh", "/app/entrypoint.sh"]
     command: ["yarn", "dev"]
-    # `links` força o alias/roteamento direto do backend para o db na rede
-    # default do Compose (implícito na bridge padrão do projeto).
-    links:
-      - db
     networks:
       - techstore_net
 
@@ -78,6 +74,7 @@ services:
   # ==========================================
   frontend:
     build: ./frontend
+    image: techstore-frontend:latest
     container_name: techstore_frontend
     restart: unless-stopped
     ports:
