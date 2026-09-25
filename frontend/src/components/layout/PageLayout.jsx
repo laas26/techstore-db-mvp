@@ -10,10 +10,12 @@ export default function PageLayout({ title, children }) {
 		>
 			<Navbar />
 			<div
-				className="page-layout"
+				className="page-layout page-layout-main"
 				style={{
 					flex: 1,
 					display: "flex",
+					flexDirection: "column",
+					gap: "24px",
 					alignItems: "center",
 					justifyContent: "center",
 					padding: "48px 16px",

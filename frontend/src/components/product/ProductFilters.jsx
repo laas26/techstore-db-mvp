@@ -23,7 +23,7 @@ export default function ProductFilters({
 	onPrecoMaximoChange,
 }) {
 	return (
-		<aside style={{ display: "grid", gap: "24px" }}>
+		<aside className="product-filters" style={{ display: "grid", gap: "24px" }}>
 			<section className="card" style={{ padding: "24px" }}>
 				<h2
 					style={{

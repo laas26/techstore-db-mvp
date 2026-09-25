@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { useProductCatalog } from '../../context/ProductCatalogContext';
 
 // Pesquisa produtos pelo inicio do nome e mostra os resultados no campo.
-export default function ProductSearch() {
+export default function ProductSearch({ className = '' }) {
   const [termoPesquisa, setTermoPesquisa] = useState('');
   const { produtos, carregando, erro, recarregar } = useProductCatalog();
 
@@ -16,7 +16,7 @@ export default function ProductSearch() {
     : [];
 
   return (
-    <div style={styles.wrapper}>
+    <div className={`product-search ${className}`.trim()} style={styles.wrapper}>
       <svg
         width="21"
         height="21"

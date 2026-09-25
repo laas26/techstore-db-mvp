@@ -27,7 +27,7 @@ export default function LoginForm({
 	const [mostrarSenha, setMostrarSenha] = useState(false);
 
 	return (
-		<section style={styles.card}>
+		<section className="auth-card" style={styles.card}>
 			<div style={styles.header}>
 				<h1 style={styles.title}>Acesse sua conta</h1>
 				<p style={styles.subtitle}>Informe seus dados para continuar</p>

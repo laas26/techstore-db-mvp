@@ -24,6 +24,7 @@ function Header() {
 
 	return (
 		<header
+			className="internal-header"
 			style={{
 				display: "flex",
 				alignItems: "center",

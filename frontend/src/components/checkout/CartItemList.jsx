@@ -21,23 +21,24 @@ export default function CartItemList({
   }
 
   return (
-    <section style={styles.itemsList}>
+    <section className="checkout-items" style={styles.itemsList}>
       {produtos.map((produto) => (
-        <article style={styles.itemCard} key={produto.id}>
-          <div style={styles.productImageWrap}>
+        <article className="checkout-item-card" style={styles.itemCard} key={produto.id}>
+          <div className="checkout-item-image" style={styles.productImageWrap}>
             <img
               style={styles.productImage}
               src={produto.imagem}
               alt={produto.nome}
             />
           </div>
-          <div style={styles.productContent}>
+          <div className="checkout-item-content" style={styles.productContent}>
             <div style={styles.productTop}>
               <div style={styles.productText}>
                 <h2 style={styles.productTitle}>{produto.nome}</h2>
                 <p style={styles.productDescription}>{produto.descricao}</p>
               </div>
               <button
+                className="checkout-item-remove"
                 style={styles.iconButton}
                 type="button"
                 aria-label={`Remover ${produto.nome}`}
@@ -47,8 +48,8 @@ export default function CartItemList({
               </button>
             </div>
 
-            <div style={styles.productBottom}>
-              <div style={styles.quantity}>
+            <div className="checkout-item-bottom" style={styles.productBottom}>
+              <div className="checkout-item-quantity" style={styles.quantity}>
                 <button
                   style={styles.quantityButton}
                   type="button"

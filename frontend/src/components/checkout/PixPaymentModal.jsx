@@ -52,7 +52,7 @@ export default function PixPaymentModal({
 	if (pedido) {
 		return (
 			<div style={styles.modalOverlay}>
-				<dialog style={styles.modal} open>
+				<dialog className="pix-modal" style={styles.modal} open>
 					<div style={styles.modalHeader}>
 						<div style={styles.modalIcon}>✓</div>
 						<h2 style={styles.modalTitle}>Pagamento simulado aprovado</h2>
@@ -75,7 +75,7 @@ export default function PixPaymentModal({
 	// Exibe o QR Code, o total e a chave copiavel do pagamento.
 	return (
 		<div style={styles.modalOverlay}>
-			<dialog style={styles.modal} open>
+			<dialog className="pix-modal" style={styles.modal} open>
 				<button
 					style={styles.closeButton}
 					type="button"
@@ -107,7 +107,7 @@ export default function PixPaymentModal({
 
 				<label style={styles.field}>
 					<span style={styles.label}>Chave PIX Copia e Cola</span>
-					<div style={styles.pixCopy}>
+					<div className="pix-copy" style={styles.pixCopy}>
 						<input
 							style={styles.pixInput}
 							type="text"

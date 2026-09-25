@@ -2,7 +2,7 @@
 export default function CheckoutFooter() {
 	// Reune os links institucionais exibidos ao final do checkout.
 	return (
-		<footer style={styles.footer}>
+		<footer className="checkout-footer" style={styles.footer}>
 			<div style={styles.footerContent}>
 				<a href="/about" style={styles.footerLink}>
 					Quem Somos

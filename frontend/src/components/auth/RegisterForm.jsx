@@ -196,7 +196,7 @@ export default function RegisterForm() {
 	);
 
 	return (
-		<section style={formStyles.card}>
+		<section className="auth-card" style={formStyles.card}>
 			<div style={formStyles.header}>
 				<h1 style={formStyles.title}>Criar conta</h1>
 				<p style={formStyles.subtitle}>Preencha seus dados para começar</p>

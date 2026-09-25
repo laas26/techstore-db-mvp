@@ -116,9 +116,9 @@ export default function Checkout() {
 	}
 
 	return (
-		<div style={styles.page}>
+		<div className="checkout-page" style={styles.page}>
 			<section style={styles.header}>
-				<h1 style={styles.title}>Checkout</h1>
+				<h1 className="checkout-title" style={styles.title}>Checkout</h1>
 				<p style={styles.subtitle}>
 					Revise seu hardware de alto desempenho e conclua sua transação segura.
 				</p>
@@ -128,7 +128,7 @@ export default function Checkout() {
 			{carregandoCarrinho ? (
 				<p>Carregando carrinho...</p>
 			) : (
-				<div style={styles.layout}>
+				<div className="checkout-layout" style={styles.layout}>
 					<div style={styles.leftColumn}>
 						<AddressForm
 							dados={dadosEntrega}
