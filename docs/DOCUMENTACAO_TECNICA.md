@@ -168,6 +168,8 @@ O Nginx possui duas responsabilidades principais:
 
 Dessa forma, o navegador utiliza uma origem única para acessar a aplicação.
 
+A interface também utiliza media queries e breakpoints para adaptar a navbar, a vitrine, o carrinho, o checkout, os formulários e o painel administrativo a telas menores. Em larguras móveis, a navegação principal é substituída por um menu acessível por botão.
+
 ### 6.2 Backend
 
 O backend foi desenvolvido utilizando **Node.js e Express**, com Prisma como ORM.
@@ -590,6 +592,8 @@ yarn build
 
 **Resultado:** 3 arquivos e 4 testes passando, com build concluído.
 
+A implementação responsiva foi incluída no build de produção. A validação visual em um dispositivo real deve ser realizada antes da demonstração pública.
+
 ### 14.3 Validações de infraestrutura
 
 Também foram executadas validações utilizando:
@@ -640,7 +644,8 @@ Os testes e validações realizados demonstraram que o MVP apresenta os seguinte
 * backup e restauração;
 * verificação automatizada da persistência;
 * integração contínua;
-* smoke test da stack.
+* smoke test da stack;
+* layout responsivo implementado para telas pequenas, com menu móvel e adaptação dos fluxos principais.
 
 A aplicação pode ser iniciada utilizando:
 
