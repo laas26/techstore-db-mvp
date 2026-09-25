@@ -10,7 +10,7 @@
 
 O desafio principal era garantir a persistência e a resiliência de dados críticos (usuários, autenticação, produtos) sem depender do ciclo de vida efémero dos contêineres.
 
-**Solução:** Isolamento da camada de dados em um serviço dedicado com volume persistente nomeado, orquestração com arranque determinístico (healthcheck) e rotina de bootstrap automática e idempotente (criação de esquema e seed sem duplicação de dados).
+**Solução:** Isolamento da camada de dados em um serviço dedicado com volume persistente nomeado, orquestração com arranque determinístico (healthcheck) e rotina de bootstrap automática e idempotente (aplicação de migrações e seed sem duplicação de dados).
 
 ---
 
@@ -55,6 +55,13 @@ cd techstore-db-mvp
 
 # 2. Subir a aplicação (build + banco + migração + seed automáticos)
 docker compose up -d --build
+```
+
+O entrypoint aplica `backend/prisma/migrations` com `prisma migrate deploy` antes de executar o seed. O volume existente é preservado; para um volume criado antes da adoção das migrações, faça backup, confirme que o schema existente corresponde ao baseline e marque-o como aplicado antes de iniciar o backend:
+
+```bash
+cd backend
+npx prisma migrate resolve --applied 20260924000000_init
 ```
 
 ---

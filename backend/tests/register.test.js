@@ -1,21 +1,41 @@
-const fs = require('node:fs');
-const path = require('node:path');
-const request = require('supertest');
 const bcrypt = require('bcrypt');
+const request = require('supertest');
 const app = require('../src/app');
+const { prisma } = require('../src/database/connection');
 
-const usuariosPath = path.join(__dirname, '../data/usuarios.json');
-const usuariosOriginais = fs.readFileSync(usuariosPath, 'utf8');
+let emailExistente;
+let emailCadastrado;
 
-afterAll(() => {
-  fs.writeFileSync(usuariosPath, usuariosOriginais, 'utf8');
+beforeAll(async () => {
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  emailExistente = `existente-${suffix}@teste.local`;
+  emailCadastrado = `cadastrado-${suffix}@teste.local`;
+
+  await prisma.usuario.create({
+    data: {
+      nome: 'Usuário Existente',
+      email: emailExistente,
+      senhaHash: await bcrypt.hash('senha123', 10),
+      role: 'user',
+    },
+  });
+});
+
+afterAll(async () => {
+  if (emailCadastrado) {
+    await prisma.usuario.deleteMany({ where: { email: emailCadastrado } });
+  }
+  if (emailExistente) {
+    await prisma.usuario.deleteMany({ where: { email: emailExistente } });
+  }
+  await prisma.$disconnect();
 });
 
 describe('POST /api/register', () => {
-  test('cadastra usuario, retorna JSON sem a senha e salva o hash', async () => {
+  test('cadastra usuário, retorna JSON sem a senha e salva o hash', async () => {
     const response = await request(app).post('/api/register').send({
       nome: 'Novo Cliente',
-      email: 'novo.cliente@exemplo.com',
+      email: emailCadastrado,
       senha: 'senhaSegura123',
     });
 
@@ -25,14 +45,13 @@ describe('POST /api/register', () => {
       usuario: {
         id: expect.any(String),
         nome: 'Novo Cliente',
-        email: 'novo.cliente@exemplo.com',
+        email: emailCadastrado,
       },
     });
 
-    const dados = JSON.parse(fs.readFileSync(usuariosPath, 'utf8'));
-    const usuario = dados.usuarios.find(
-      (item) => item.email === 'novo.cliente@exemplo.com',
-    );
+    const usuario = await prisma.usuario.findUnique({
+      where: { email: emailCadastrado },
+    });
 
     expect(usuario.senhaHash).not.toBe('senhaSegura123');
     await expect(
@@ -40,10 +59,10 @@ describe('POST /api/register', () => {
     ).resolves.toBe(true);
   });
 
-  test('retorna 409 quando o e-mail ja esta cadastrado', async () => {
+  test('retorna 409 quando o e-mail já está cadastrado', async () => {
     const response = await request(app).post('/api/register').send({
       nome: 'Outro Cliente',
-      email: 'cliente@techstore.local',
+      email: emailExistente,
       senha: 'senhaSegura123',
     });
 
@@ -51,7 +70,7 @@ describe('POST /api/register', () => {
     expect(response.body).toEqual({ erro: 'E-mail já cadastrado' });
   });
 
-  test('retorna 400 quando os dados sao invalidos', async () => {
+  test('retorna 400 quando os dados são inválidos', async () => {
     const response = await request(app).post('/api/register').send({
       nome: '',
       email: 'email-invalido',

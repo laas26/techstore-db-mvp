@@ -11,9 +11,14 @@ Decimal.prototype.toJSON = function () {
 };
 
 function resolverDatabaseUrl() {
-  if (process.env.DATABASE_URL) {
-    return process.env.DATABASE_URL;
+  const databaseUrl = process.env.DATABASE_URL;
+  if (databaseUrl) {
+    if (/^postgres(?:ql)?:\/\//i.test(databaseUrl)) return databaseUrl;
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('DATABASE_URL deve usar o protocolo PostgreSQL');
+    }
   }
+
   const dbHost = process.env.DB_HOST || 'localhost';
   const dbPort = process.env.DB_PORT || '5432';
   const dbUser = process.env.DB_USER || 'techstore_user';

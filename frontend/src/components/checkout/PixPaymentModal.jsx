@@ -16,6 +16,11 @@ function formatarPreco(valor) {
 	});
 }
 
+function createIdempotencyKey() {
+	if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+	return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export default function PixPaymentModal({
 	total,
 	onClose,
@@ -25,12 +30,13 @@ export default function PixPaymentModal({
 	const [processando, setProcessando] = useState(false);
 	const [pedido, setPedido] = useState(null);
 	const [erro, setErro] = useState("");
+	const [idempotencyKey] = useState(createIdempotencyKey);
 
 	async function simularPagamento() {
 		setProcessando(true);
 		setErro("");
 		try {
-			const pedidoCriado = await criarPedido({ entrega });
+			const pedidoCriado = await criarPedido({ entrega }, idempotencyKey);
 			const pedidoPago = await confirmarPagamento(pedidoCriado.id);
 			setPedido(pedidoPago);
 			await onPagamentoConfirmado(pedidoPago);

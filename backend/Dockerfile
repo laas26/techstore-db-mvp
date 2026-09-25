@@ -14,7 +14,7 @@ COPY . .
 # 4. Compila o motor do Prisma Client especificamente para o ambiente Linux do container
 RUN npx prisma generate
 
-# 5. Bootstrap automático: entrypoint aguarda o banco, faz db push + seed e inicia a API.
+# 5. Bootstrap automático: entrypoint aplica migrações, faz seed e inicia a API.
 # Permite `docker compose up -d` do zero sem comandos manuais.
 COPY entrypoint.sh ./
 RUN chmod +x /app/entrypoint.sh

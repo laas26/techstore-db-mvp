@@ -2,7 +2,7 @@
 #
 # Objetivo: provar que apenas `docker compose up -d --build` entrega o projeto
 # pronto para uso — o entrypoint.sh do backend espera o banco, roda
-# `prisma db push`, popula o banco com o seed idempotente (scripts/seed.js)
+# `prisma migrate deploy`, popula o banco com o seed idempotente (scripts/seed.js)
 # e só então sobe a API em modo dev (nodemon).
 #
 # O que é validado aqui:
@@ -32,16 +32,16 @@ jobs:
         uses: actions/checkout@v4
 
       # Build das imagens + arranque: db (healthcheck) -> backend (entrypoint:
-      # db push + seed) -> frontend. Nenhum comando manual é executado.
+      # migrate deploy + seed) -> frontend. Nenhum comando manual é executado.
       - name: Subir a stack completa (docker compose up -d --build)
         run: docker compose up -d --build
 
-      # Aguarda o bootstrap terminar: healthcheck do PostgreSQL + prisma db push +
+      # Aguarda o bootstrap terminar: healthcheck do PostgreSQL + prisma migrate deploy +
       # seed do entrypoint.sh. Em vez de um sleep fixo, tenta até 5 minutos para
       # absorver a variação de tempo de build do runner.
       - name: Aguardar containers saudáveis e bootstrap do entrypoint.sh
         run: |
-          echo "⏳ Aguardando entrypoint.sh concluir db push + seed..."
+          echo "⏳ Aguardando entrypoint.sh concluir migrate deploy + seed..."
           for i in $(seq 1 60); do
             if curl -sf http://localhost:3001/ >/dev/null \
               && curl -sf http://localhost:3002/api/produtos >/dev/null; then

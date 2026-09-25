@@ -1,149 +1,148 @@
-// src/repositories/productRepository.js
-const { prisma } = require("../database/connection");
+const { Prisma } = require('@prisma/client');
+const { prisma } = require('../database/connection');
 
-async function listarTodos() {
-	return await prisma.produto.findMany({
-		orderBy: { created_at: "desc" },
-	});
+class EstoqueInsuficienteError extends Error {
+  constructor() {
+    super('Estoque insuficiente');
+    this.name = 'EstoqueInsuficienteError';
+  }
 }
 
-async function listarPorId(id) {
-	return await prisma.produto.findUnique({
-		where: { id: Number(id) },
-	});
+class ProdutoEmUsoError extends Error {
+  constructor() {
+    super('Produto possui pedidos vinculados');
+    this.name = 'ProdutoEmUsoError';
+  }
+}
+
+async function listarTodos() {
+  return prisma.produto.findMany({ orderBy: { created_at: 'desc' } });
+}
+
+async function listarPorId(id, client = prisma) {
+  const produtoId = Number(id);
+  if (!Number.isInteger(produtoId) || produtoId <= 0) return null;
+  return client.produto.findUnique({ where: { id: produtoId } });
 }
 
 async function criarProduto(dadosProduto) {
-	const { nome, descricao, preco, stock = 0, imagem, categoria } = dadosProduto;
+  const { nome, descricao, preco, stock = 0, imagem, categoria } = dadosProduto;
+  const produto = await prisma.produto.create({
+    data: {
+      nome,
+      descricao: descricao || null,
+      preco,
+      stock,
+      imagem: imagem || null,
+      categoria: categoria || null,
+    },
+  });
 
-	const produto = await prisma.produto.create({
-		data: {
-			nome,
-			descricao: descricao || null,
-			preco,
-			stock,
-			imagem: imagem || null,
-			categoria: categoria || null
-		},
-	});
-
-	return {
-		...produto,
-		id: String(produto.id), // Mantém id como String para compatibilidade com o restante do app
-	};
+  return { ...produto, id: String(produto.id) };
 }
 
 async function atualizarProduto(id, dadosAtualizados) {
-	try {
-		const produto = await prisma.produto.update({
-			where: { id: Number(id) },
-			data: dadosAtualizados,
-		});
-
-		return {
-			...produto,
-			id: String(produto.id),
-		};
-	} catch (error) {
-		if (error.code === "P2025") return null;
-		throw error;
-	}
+  try {
+    const produto = await prisma.produto.update({
+      where: { id: Number(id) },
+      data: dadosAtualizados,
+    });
+    return { ...produto, id: String(produto.id) };
+  } catch (error) {
+    if (error.code === 'P2025') return null;
+    throw error;
+  }
 }
 
 async function removerProduto(id) {
-	try {
-		const produto = await prisma.produto.delete({
-			where: { id: Number(id) },
-		});
-
-		return {
-			...produto,
-			id: String(produto.id),
-		};
-	} catch (error) {
-		if (error.code === "P2025") return null;
-		throw error;
-	}
+  try {
+    const produto = await prisma.produto.delete({
+      where: { id: Number(id) },
+    });
+    return { ...produto, id: String(produto.id) };
+  } catch (error) {
+    if (error.code === 'P2025') return null;
+    if (error.code === 'P2003') throw new ProdutoEmUsoError();
+    throw error;
+  }
 }
 
-async function baixarEstoque(itens) {
-	// O Prisma gerencia o Rollback automaticamente se qualquer erro for lançado dentro do $transaction
-	return await prisma.$transaction(async (tx) => {
-		const snapshots = [];
-		const quantidadesPorProduto = new Map();
+async function baixarEstoque(itens, client = prisma) {
+  const operation = async (tx) => {
+    const quantidadesPorProduto = new Map();
 
-		for (const item of itens) {
-			if (!item || item.produtoId === undefined || !Number.isInteger(item.quantidade) || item.quantidade <= 0) {
-				return null;
-			}
+    for (const item of itens) {
+      const produtoId = Number(item?.produtoId);
+      if (
+        !Number.isInteger(produtoId) ||
+        produtoId <= 0 ||
+        !Number.isInteger(item?.quantidade) ||
+        item.quantidade <= 0
+      ) {
+        throw new EstoqueInsuficienteError();
+      }
 
-			const produtoId = Number(item.produtoId);
-			const quantidadeAcumulada = (quantidadesPorProduto.get(produtoId) || 0) + item.quantidade;
-			quantidadesPorProduto.set(produtoId, quantidadeAcumulada);
+      const quantidade = item.quantidade;
+      quantidadesPorProduto.set(
+        produtoId,
+        (quantidadesPorProduto.get(produtoId) || 0) + quantidade,
+      );
+    }
 
-			// Simulamos o "FOR UPDATE" usando uma query comum dentro da transação isolada
-			const produto = await tx.produto.findUnique({
-				where: { id: produtoId },
-			});
+    const snapshots = [];
+    const produtosOrdenados = [...quantidadesPorProduto.entries()].sort(
+      ([primeiroId], [segundoId]) => primeiroId - segundoId,
+    );
+    for (const [produtoId, quantidade] of produtosOrdenados) {
+      const produto = await tx.produto.findUnique({ where: { id: produtoId } });
+      if (!produto || produto.stock < quantidade) {
+        throw new EstoqueInsuficienteError();
+      }
 
-			if (!produto || !Number.isInteger(produto.stock)) return null;
-			if (quantidadeAcumulada > produto.stock) return null;
+      const resultado = await tx.produto.updateMany({
+        where: { id: produtoId, stock: { gte: quantidade } },
+        data: { stock: { decrement: quantidade } },
+      });
 
-			snapshots.push({
-				produtoId: String(produto.id),
-				nome: produto.nome,
-				preco: Number(produto.preco),
-				imagem: produto.imagem,
-				quantidade: item.quantidade,
-				subtotal: Number(produto.preco) * item.quantidade,
-			});
-		}
+      if (resultado.count !== 1) {
+        throw new EstoqueInsuficienteError();
+      }
 
-		// Executa as atualizações de estoque em lote de forma isolada
-		for (const [produtoId, quantidade] of quantidadesPorProduto) {
-			await tx.produto.update({
-				where: { id: produtoId },
-				data: {
-					stock: { decrement: quantidade }, // Equivalente a SET stock = stock - quantidade
-				},
-			});
-		}
+      const produtoAtualizado = await tx.produto.findUnique({
+        where: { id: produtoId },
+      });
+      const preco = new Prisma.Decimal(produtoAtualizado.preco);
+      snapshots.push({
+        produtoId: String(produtoId),
+        nome: produtoAtualizado.nome,
+        descricao: produtoAtualizado.descricao,
+        preco,
+        imagem: produtoAtualizado.imagem,
+        quantidade,
+        subtotal: preco.mul(quantidade),
+      });
+    }
 
-		return snapshots;
-	});
-}
+    return snapshots;
+  };
 
-async function restaurarEstoque(itens) {
-	await prisma.$transaction(async (tx) => {
-		for (const item of itens) {
-			if (!item || !Number.isInteger(item.quantidade) || item.quantidade <= 0) {
-				throw new Error("Não foi possível restaurar o estoque do pedido");
-			}
+  if (client !== prisma) return operation(client);
 
-			const produtoId = Number(item.produtoId);
-			const produto = await tx.produto.findUnique({
-				where: { id: produtoId },
-			});
-
-			if (!produto) {
-				throw new Error("Não foi possível restaurar o estoque do pedido");
-			}
-
-			await tx.produto.update({
-				where: { id: produtoId },
-				data: {
-					stock: { increment: item.quantidade }, // Equivalente a SET stock = stock + quantidade
-				},
-			});
-		}
-	});
+  try {
+    return await prisma.$transaction(operation);
+  } catch (error) {
+    if (error instanceof EstoqueInsuficienteError) return null;
+    throw error;
+  }
 }
 
 module.exports = {
-	listarTodos,
-	criarProduto,
-	atualizarProduto,
-	baixarEstoque,
-	restaurarEstoque,
-	removerProduto,
+  EstoqueInsuficienteError,
+  ProdutoEmUsoError,
+  atualizarProduto,
+  baixarEstoque,
+  criarProduto,
+  listarPorId,
+  listarTodos,
+  removerProduto,
 };
