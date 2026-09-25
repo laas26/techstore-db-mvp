@@ -3,7 +3,7 @@
 #
 # Propósito:
 #   Garantir a qualidade do código-fonte a cada push/PR para main ou develop.
-#   - Backend: Valida esquema do Prisma, executa bootstrap (db push + seed) contra
+#   - Backend: Valida esquema do Prisma, executa migrações e seed contra
 #     PostgreSQL e roda a suíte de testes e linter.
 #   - Frontend: Instala dependências, roda testes unitários (Vitest), gera o build
 #     de produção e valida o código com Biome.
@@ -74,15 +74,14 @@ jobs:
       - name: Gerar Prisma Client
         run: npx prisma generate
 
-      - name: Sincronizar esquema (db push)
-        run: npx prisma db push --accept-data-loss
+      - name: Aplicar migrações do banco
+        run: npx prisma migrate deploy
 
       - name: Popular banco (seed idempotente)
         run: yarn seed
 
-      - name: Testes Jest (não-bloqueante — suíte em manutenção)
-        run: yarn test
-        continue-on-error: true
+      - name: Testes Jest (bloqueante)
+        run: yarn test --runInBand
 
       - name: Lint Biome (não-bloqueante — repo ainda não conforme)
         run: yarn lint

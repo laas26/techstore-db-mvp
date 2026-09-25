@@ -45,18 +45,25 @@ model Carrinho {
   usuario    Usuario @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
   produto    Produto @relation(fields: [produto_id], references: [id], onDelete: Cascade)
 
+  @@unique([usuario_id, produto_id], map: "carrinhos_usuario_id_produto_id_key")
   @@map("carrinhos")
 }
 
 model Pedido {
-  id         Int          @id @default(autoincrement())
-  usuario_id Int
-  total      Decimal      @db.Decimal(10, 2)
-  status     String       @default("pendente")
-  created_at DateTime     @default(now())
-  usuario    Usuario      @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
-  itens      PedidoItem[]
+  id              Int          @id @default(autoincrement())
+  usuario_id      Int
+  total           Decimal      @db.Decimal(10, 2)
+  status          String       @default("pendente")
+  idempotencyKey  String?      @map("idempotency_key") @db.VarChar(128)
+  idempotencyHash String?      @map("idempotency_hash") @db.Char(64)
+  entrega         Json?        @map("entrega") @db.JsonB
+  pagamento       String       @default("pix-simulado") @map("pagamento")
+  created_at      DateTime     @default(now())
+  usuario         Usuario      @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  itens           PedidoItem[]
 
+  @@unique([usuario_id, idempotencyKey], map: "pedidos_usuario_id_idempotency_key")
+  @@index([usuario_id, created_at])
   @@map("pedidos")
 }
 
@@ -66,9 +73,11 @@ model PedidoItem {
   produto_id     Int
   quantidade     Int
   preco_unitario Decimal @db.Decimal(10, 2)
+  nomeProduto    String? @map("nome_produto")
   pedido         Pedido  @relation(fields: [pedido_id], references: [id], onDelete: Cascade)
-  produto        Produto @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+  produto        Produto @relation(fields: [produto_id], references: [id], onDelete: Restrict)
 
+  @@index([produto_id])
   @@map("pedido_itens")
 }
 

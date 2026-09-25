@@ -2,3 +2,7 @@
 # (ex.: "set: illegal option -e"). Sem isto, um clone no Windows com
 # core.autocrlf=true corromperia o entrypoint no bind mount.
 *.sh text eol=lf
+backend/prisma/migrations/**/*.sql text eol=lf
+backend/prisma/schema.prisma text eol=lf
+backend/prisma/migrations/**/*.toml text eol=lf
+backend/prisma/migrations/**/*.sql whitespace=-blank-at-eof

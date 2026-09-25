@@ -6,6 +6,7 @@ import CheckoutFooter from "../components/checkout/CheckoutFooter";
 import OrderSummary from "../components/checkout/OrderSummary";
 import PixPaymentModal from "../components/checkout/PixPaymentModal";
 import { useAuth } from "../context/AuthContext";
+import { useProductCatalog } from "../context/ProductCatalogContext";
 import { useCart } from "../hooks/useCart";
 
 export default function Checkout() {
@@ -22,6 +23,7 @@ export default function Checkout() {
 		carregando: carregandoCarrinho,
 	} = useCart();
 	const { usuarioLogado } = useAuth();
+	const { recarregar } = useProductCatalog();
 	const [dadosEntrega, setDadosEntrega] = useState({
 		nome: usuarioLogado?.nome || "",
 		endereco: "",
@@ -83,6 +85,11 @@ export default function Checkout() {
 			[campo]: valor,
 		}));
 		setMensagemEntrega("");
+	}
+
+	async function handlePagamentoConfirmado() {
+		await limparCarrinho();
+		recarregar();
 	}
 
 	function salvarDadosEntrega(event) {
@@ -151,7 +158,7 @@ export default function Checkout() {
 					total={total}
 					entrega={dadosEntrega}
 					onClose={() => setModalPixAberto(false)}
-					onPagamentoConfirmado={limparCarrinho}
+					onPagamentoConfirmado={handlePagamentoConfirmado}
 				/>
 			)}
 

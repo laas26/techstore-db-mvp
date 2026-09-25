@@ -102,9 +102,6 @@ export function CartProvider({ children }) {
 	}
 
 	async function limparCarrinho() {
-		for (const item of carrinho.itens) {
-			await removerProduto(item.id);
-		}
 		setCarrinho(normalizarCarrinho());
 	}
 

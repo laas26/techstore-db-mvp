@@ -1,62 +1,74 @@
-// Centraliza a persistência de carrinhos no PostgreSQL usando Prisma.
-const { prisma } = require("../database/connection");
+const { prisma } = require('../database/connection');
 
-async function buscarPorUsuarioId(usuarioId) {
-    // Busca os itens do carrinho incluindo os dados do relacionamento com a tabela de produtos
-    const registros = await prisma.carrinho.findMany({
-        where: { usuario_id: Number(usuarioId) },
-        include: {
-            produto: true // Realiza o JOIN automático definido no schema.prisma
-        }
-    });
-
-    // Mapeia o resultado do Prisma para manter o mesmo contrato esperado pela aplicação
-    const itens = registros.map(registro => ({
-        produtoId: String(registro.produto_id),
-        quantidade: registro.quantidade,
-        nome: registro.produto.nome,
-        preco: Number(registro.produto.preco),
-        imagem: registro.produto.imagem,
-        subtotal: Number(registro.produto.preco) * registro.quantidade
-    }));
-
-    return {
-        usuarioId: String(usuarioId),
-        itens: itens
-    };
+function mapearItem(registro) {
+  return {
+    produtoId: String(registro.produto_id),
+    quantidade: registro.quantidade,
+    nome: registro.produto.nome,
+    descricao: registro.produto.descricao,
+    preco: Number(registro.produto.preco),
+    imagem: registro.produto.imagem,
+    subtotal: Number(registro.produto.preco) * registro.quantidade,
+  };
 }
 
-async function salvarPorUsuarioId(usuarioId, itens) {
-    // Usamos a transação do Prisma para garantir consistência atômica das operações
-    return await prisma.$transaction(async (tx) => {
-        const uId = Number(usuarioId);
+async function buscarPorUsuarioId(usuarioId, client = prisma) {
+  const registros = await client.carrinho.findMany({
+    where: { usuario_id: Number(usuarioId) },
+    include: { produto: true },
+    orderBy: { produto_id: 'asc' },
+  });
 
-        // 1. Remove todos os itens antigos do carrinho deste usuário
-        await tx.carrinho.deleteMany({
-            where: { usuario_id: uId }
+  return {
+    usuarioId: String(usuarioId),
+    itens: registros.map(mapearItem),
+  };
+}
+
+async function salvarPorUsuarioId(usuarioId, itens = [], client = prisma) {
+  const salvar = async (tx) => {
+    const uId = Number(usuarioId);
+    const novosItens = itens
+      .filter((item) => item.quantidade > 0)
+      .map((item) => ({
+        usuario_id: uId,
+        produto_id: Number(item.produtoId),
+        quantidade: item.quantidade,
+      }));
+    const produtoIds = novosItens.map((item) => item.produto_id);
+
+    if (produtoIds.length === 0) {
+      await tx.carrinho.deleteMany({ where: { usuario_id: uId } });
+    } else {
+      await tx.carrinho.deleteMany({
+        where: {
+          usuario_id: uId,
+          produto_id: { notIn: produtoIds },
+        },
+      });
+
+      for (const item of novosItens) {
+        await tx.carrinho.upsert({
+          where: {
+            usuario_id_produto_id: {
+              usuario_id: item.usuario_id,
+              produto_id: item.produto_id,
+            },
+          },
+          update: { quantidade: item.quantidade },
+          create: item,
         });
+      }
+    }
 
-        // 2. Insere os novos itens de forma otimizada
-        // Filtra para garantir que apenas itens com quantidade válida entrem no banco
-        const novosItens = itens
-            .filter(item => item.quantidade > 0)
-            .map(item => ({
-                usuario_id: uId,
-                produto_id: Number(item.produtoId),
-                quantidade: item.quantidade
-            }));
+    return buscarPorUsuarioId(usuarioId, tx);
+  };
 
-        if (novosItens.length > 0) {
-            // O Prisma 6 permite criar múltiplos registros em lote usando o createMany
-            await tx.carrinho.createMany({
-                data: novosItens
-            });
-        }
+  if (client === prisma) {
+    return prisma.$transaction(salvar);
+  }
 
-        // Retorna o estado final estruturado consumindo a função de busca
-        // Passamos o tx (contexto da transação) se necessário, ou chamamos a função principal
-        return await buscarPorUsuarioId(usuarioId);
-    });
+  return salvar(client);
 }
 
 module.exports = { buscarPorUsuarioId, salvarPorUsuarioId };

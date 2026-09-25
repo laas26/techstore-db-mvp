@@ -27,11 +27,7 @@ else
 fi
 
 npx prisma generate
-
-until npx prisma db push --skip-generate; do
-  echo "Banco indisponível; nova tentativa em 3 segundos"
-  sleep 3
-done
+npx prisma migrate deploy
 
 if [ "${SEED_ON_START:-true}" = "true" ]; then
   node scripts/seed.js
