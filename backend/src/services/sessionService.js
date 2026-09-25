@@ -1,72 +1,66 @@
-// Mantém a lista persistida de sessões JWT revogadas até sua expiração.
-const fs = require("node:fs");
-const path = require("node:path");
+const { prisma } = require('../database/connection');
 
-const SESSOES_PATH = path.join(__dirname, "../../data/sessoes_revogadas.json");
+const DEFAULT_SESSION_TTL_MS = 60 * 60 * 1000;
 
-function lerSessoesRevogadas() {
-	try {
-		const conteudo = fs.readFileSync(SESSOES_PATH, "utf8");
-		const sessoes = JSON.parse(conteudo);
-		if (!Array.isArray(sessoes)) {
-			return [];
-		}
+function toExpiration(expiraEm) {
+  const timestamp =
+    expiraEm instanceof Date ? expiraEm.getTime() : Number(expiraEm) * 1000;
 
-		const sessoesAtivas = sessoes.filter(
-			(sessao) => sessao.expiraEm >= Date.now(),
-		);
-
-		if (sessoesAtivas.length !== sessoes.length) {
-			fs.writeFileSync(
-				SESSOES_PATH,
-				`${JSON.stringify(sessoesAtivas, null, 2)}\n`,
-				"utf8",
-			);
-		}
-
-		return sessoesAtivas;
-	} catch {
-		return [];
-	}
+  return Number.isFinite(timestamp) ? new Date(timestamp) : null;
 }
 
-let sessoesRevogadas = lerSessoesRevogadas();
+async function revogarSessao(jti, expiraEm) {
+  if (!jti) {
+    throw new Error('Token de sessão sem identificador de revogação');
+  }
 
-function salvarSessoesRevogadas() {
-	fs.writeFileSync(
-		SESSOES_PATH,
-		JSON.stringify(sessoesRevogadas, null, 2),
-		"utf8",
-	);
+  const expiration = toExpiration(expiraEm);
+  if (!expiration) {
+    throw new Error('Token de sessão sem data de expiração');
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.sessaoRevogada.deleteMany({
+      where: { expiraEm: { lt: new Date() } },
+    });
+
+    const existing = await tx.sessaoRevogada.findFirst({
+      where: { jti },
+    });
+
+    if (existing) {
+      await tx.sessaoRevogada.updateMany({
+        where: { jti },
+        data: { expiraEm: expiration },
+      });
+      return;
+    }
+
+    await tx.sessaoRevogada.create({ data: { jti, expiraEm: expiration } });
+  });
 }
 
-function limparSessoesExpiradas() {
-	const agora = Date.now();
-	const sessoesAtivas = sessoesRevogadas.filter(
-		(sessao) => sessao.expiraEm > agora,
-	);
+async function sessaoFoiRevogada(jti) {
+  if (!jti) return false;
 
-	if (sessoesAtivas.length !== sessoesRevogadas.length) {
-		sessoesRevogadas = sessoesAtivas;
-		salvarSessoesRevogadas();
-	}
-}
+  const revogada = await prisma.sessaoRevogada.findFirst({
+    where: { jti },
+  });
 
-function revogarSessao(jti, expiraEm) {
-	if (!jti || !expiraEm) {
-		return;
-	}
+  if (!revogada) return false;
 
-	limparSessoesExpiradas();
-	if (!sessoesRevogadas.some((sessao) => sessao.jti === jti)) {
-		sessoesRevogadas.push({ jti, expiraEm: expiraEm * 1000 });
-		salvarSessoesRevogadas();
-	}
-}
+  const revokedAt = revogada.revokedAt
+    ? new Date(revogada.revokedAt).getTime()
+    : Date.now();
+  const expiration =
+    revogada.expiraEm || new Date(revokedAt + DEFAULT_SESSION_TTL_MS);
 
-function sessaoFoiRevogada(jti) {
-	limparSessoesExpiradas();
-	return Boolean(jti && sessoesRevogadas.some((sessao) => sessao.jti === jti));
+  if (expiration <= new Date()) {
+    await prisma.sessaoRevogada.deleteMany({ where: { jti } });
+    return false;
+  }
+
+  return true;
 }
 
 module.exports = { revogarSessao, sessaoFoiRevogada };

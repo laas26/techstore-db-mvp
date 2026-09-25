@@ -8,4 +8,13 @@ describe('Health Check - Testes de Integração', () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ status: 'ok' });
   });
+
+  test('CORS não deve refletir origens desconhecidas', async () => {
+    const response = await request(app)
+      .get('/health')
+      .set('Origin', 'https://attacker.example');
+
+    expect(response.status).toBe(200);
+    expect(response.headers['access-control-allow-origin']).toBeUndefined();
+  });
 });

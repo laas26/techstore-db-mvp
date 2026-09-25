@@ -1,11 +1,21 @@
-// scripts/seed.js
 require('dotenv').config();
 
-const { prisma } = require('../src/database/connection'); 
+const { prisma } = require('../src/database/connection');
 const bcrypt = require('bcrypt');
 
-const SENHA_ADMIN_PADRAO = process.env.SEED_ADMIN_PASSWORD || 'Admin@123';
-const SENHA_CLIENTE_PADRAO = process.env.SEED_CLIENTE_PASSWORD || 'Cliente@123';
+function getSeedPassword(name, fallback) {
+  const value = process.env[name];
+  if (process.env.NODE_ENV === 'production' && !value) {
+    throw new Error(`${name} deve ser definido em produção`);
+  }
+  return value || fallback;
+}
+
+const SENHA_ADMIN_PADRAO = getSeedPassword('SEED_ADMIN_PASSWORD', 'Admin@123');
+const SENHA_CLIENTE_PADRAO = getSeedPassword(
+  'SEED_CLIENTE_PASSWORD',
+  'Cliente@123',
+);
 
 const usuariosIniciais = [
   {
@@ -89,54 +99,35 @@ const produtosIniciais = [
   },
 ];
 
-async function executarSeeds() { // Corrigido para "x"
-  console.log('🌱 Iniciando semeio de dados com Prisma...');
+async function executarSeeds() {
+  console.log('Iniciando carga inicial de dados com Prisma');
 
   for (const usuario of usuariosIniciais) {
-    const senhaHash = await bcrypt.hash(usuario.senha, 10);
-    
-    await prisma.usuario.upsert({
+    const existente = await prisma.usuario.findUnique({
       where: { email: usuario.email },
-      update: {
-        nome: usuario.nome,
-        senhaHash: senhaHash,
-        role: usuario.role,
-      },
-      create: {
-        nome: usuario.nome,
-        email: usuario.email,
-        senhaHash: senhaHash,
-        role: usuario.role,
-      },
     });
+
+    if (!existente) {
+      const senhaHash = await bcrypt.hash(usuario.senha, 10);
+      await prisma.usuario.create({
+        data: {
+          nome: usuario.nome,
+          email: usuario.email,
+          senhaHash,
+          role: usuario.role,
+        },
+      });
+    }
   }
 
   for (const produto of produtosIniciais) {
     const existente = await prisma.produto.findFirst({
-      where: { nome: produto.nome }
+      where: { nome: produto.nome },
     });
 
-    if (existente) {
-      await prisma.produto.update({
-        where: { id: existente.id },
-        data: {
-          descricao: produto.descricao,
-          preco: produto.preco,
-          stock: produto.stock,
-          categoria: produto.categoria,
-          imagem: produto.imagem,
-        }
-      });
-    } else {
+    if (!existente) {
       await prisma.produto.create({
-        data: {
-          nome: produto.nome,
-          descricao: produto.descricao,
-          preco: produto.preco,
-          stock: produto.stock,
-          categoria: produto.categoria,
-          imagem: produto.imagem,
-        }
+        data: produto,
       });
     }
   }
@@ -145,11 +136,12 @@ async function executarSeeds() { // Corrigido para "x"
 async function executarComoScript() {
   try {
     await executarSeeds();
-    console.log('✅ Seed executado com sucesso.');
-    console.log('Gerente: admin@techstore.local / Admin@123');
-    console.log('Cliente: cliente@techstore.local / Cliente@123');
+    console.log('Seed executado com sucesso');
+    console.log(
+      'Usuários de demonstração verificados: admin@techstore.local e cliente@techstore.local',
+    );
   } catch (error) {
-    console.error('❌ Erro ao executar seed:', error);
+    console.error('Erro ao executar seed:', error);
     process.exitCode = 1;
   } finally {
     await prisma.$disconnect();

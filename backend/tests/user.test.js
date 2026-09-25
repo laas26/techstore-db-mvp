@@ -8,7 +8,7 @@ describe('Testes de Integração - Rotas Protegidas e AuthMiddleware', () => {
   beforeAll(async () => {
     const response = await request(app).post('/api/auth/login').send({
       email: 'cliente@techstore.local', // Substitua pelo e-mail de um usuário válido no seu usuarios.json
-      senha: 'senha123', // Substitua pela senha correspondente
+      senha: 'Cliente@123', // Substitua pela senha correspondente
     });
 
     const cookies = response.headers['set-cookie'];
