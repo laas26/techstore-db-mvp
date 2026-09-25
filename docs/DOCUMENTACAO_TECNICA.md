@@ -1,93 +1,122 @@
-# Documentação Técnica — TechStore
+# Documentação Técnica: TechStore
 
-## 1. Identificação
+## 1. Identificação do Projeto
 
-- **Projeto:** TechStore
-- **Área:** persistência e gestão de dados
-- **Tipo:** MVP acadêmico de DevOps
-- **Objetivo:** demonstrar persistência, resiliência, consistência transacional e automação de operação em containers
+| Campo                             | Descrição                                                                                             |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Projeto**                       | TechStore                                                                                             |
+| **Tipo**                          | MVP                                                                                                   |
+| **Área**                          | Persistência e Gestão de Dados                                                                        |
+| **Integrantes**                   | Lays Gomes, [Nome 2], [Nome 3], [Nome 4]                                                              |
+| **Objetivo**                      | Demonstrar persistência, resiliência, consistência transacional e automação de operação em containers |
 
-### Integrantes
+### Sobre o documento
 
-1. [Nome completo do integrante 1]
-2. [Nome completo do integrante 2]
-3. [Nome completo do integrante 3]
-4. [Nome completo do integrante 4]
+Este documento apresenta a documentação técnica do MVP **TechStore**, descrevendo a problemática recebida, a análise realizada, a solução proposta, sua arquitetura, as tecnologias utilizadas, o processo de desenvolvimento, as práticas DevOps aplicadas, os procedimentos de execução, os testes realizados, os resultados obtidos, as limitações identificadas e as possíveis evoluções futuras.
 
-Este documento descreve o estado atual do projeto e permite que outra pessoa compreenda e reproduza a execução da aplicação.
-
----
-
-## 2. Problemática recebida
-
-O desafio era construir uma aplicação cujos dados não fossem perdidos quando os containers fossem destruídos, recriados ou reiniciados.
-
-A solução deveria:
-
-- manter usuários, produtos, carrinhos e pedidos em banco relacional;
-- permitir reconstruir o ambiente local com um comando;
-- evitar duplicação de dados na inicialização;
-- preservar o catálogo e as regras de negócio;
-- manter carrinho, estoque e pedido consistentes;
-- comprovar a persistência após a recriação da stack.
-
-O escopo é um MVP para avaliação acadêmica, não uma operação de produção ou um sistema de pagamentos real.
+O objetivo é permitir que outra pessoa compreenda o funcionamento da solução e consiga reproduzir sua execução em um ambiente local.
 
 ---
 
-## 3. Análise do problema
+## Sumário
 
-A análise separou o problema em cinco pontos.
+1. [Identificação do Projeto](#1-identificação-do-projeto)
+2. [Problemática Recebida](#2-problemática-recebida)
+3. [Análise do Problema](#3-análise-do-problema)
+4. [Proposta da Solução](#4-proposta-da-solução)
+5. [Arquitetura da Solução](#5-arquitetura-da-solução)
+6. [Componentes da Solução](#6-componentes-da-solução)
+7. [Persistência e Inicialização](#7-persistência-e-inicialização)
+8. [Modelo de Dados](#8-modelo-de-dados)
+9. [Tecnologias e Ferramentas](#9-tecnologias-e-ferramentas)
+10. [Justificativa das Escolhas Técnicas](#10-justificativa-das-escolhas-técnicas)
+11. [Processo de Desenvolvimento](#11-processo-de-desenvolvimento)
+12. [Práticas DevOps](#12-práticas-devops)
+13. [Execução do Projeto](#13-execução-do-projeto)
+14. [Testes e Validações](#14-testes-e-validações)
+15. [Resultados Obtidos](#15-resultados-obtidos)
+16. [Limitações da Solução](#16-limitações-da-solução)
+17. [Evoluções Futuras](#17-evoluções-futuras)
+18. [Conclusão](#18-conclusão)
+
+---
+
+## 2. Problemática Recebida
+
+O desafio do projeto consiste em desenvolver uma aplicação cujos dados não sejam perdidos quando os containers responsáveis pela aplicação forem interrompidos, destruídos ou recriados.
+
+Além da persistência, a solução deve garantir a integridade das informações e das operações relacionadas aos usuários, produtos, carrinhos, estoques e pedidos.
+
+A solução deveria atender aos seguintes requisitos:
+
+* manter usuários, produtos, carrinhos e pedidos em um banco de dados relacional;
+* permitir reconstruir o ambiente local utilizando um único comando;
+* evitar duplicação de dados durante a inicialização;
+* preservar o catálogo e as regras de negócio;
+* manter carrinho, estoque e pedido consistentes;
+* comprovar a persistência dos dados após a recriação da stack.
+
+---
+
+## 3. Análise do Problema
+
+A análise do problema foi dividida em quatro pontos principais: persistência, inicialização, integridade e duplicidade.
 
 ### 3.1 Persistência
 
-Os dados precisavam sobreviver à remoção dos containers. O PostgreSQL foi escolhido como banco de dados, com os arquivos armazenados em um volume Docker.
+Os dados da aplicação precisam permanecer disponíveis mesmo quando os containers são removidos.
+
+Para atender a esse requisito, foi utilizado o **PostgreSQL** como banco de dados relacional, associado a um **volume Docker** responsável por armazenar os arquivos do banco independentemente do ciclo de vida dos containers.
 
 ### 3.2 Inicialização
 
-O banco, as migrações, o seed e a API precisam iniciar em ordem determinística. O Compose usa healthchecks e `depends_on` para evitar que o backend tente usar o banco antes de ele estar pronto.
+A aplicação possui diferentes serviços que precisam ser inicializados em uma ordem adequada.
 
-### 3.3 Integridade
+O PostgreSQL deve estar disponível antes que o backend tente realizar consultas. Para isso, foram utilizados **healthchecks** e `depends_on` no Docker Compose.
 
-O carrinho, o estoque e o pedido não podem ser alterados de forma independente durante o checkout. A criação do pedido precisa ser atômica.
+Durante a inicialização, o ambiente executa as migrações e o seed antes de disponibilizar a API.
+
+### 3.3 Integridade dos dados
+
+As operações relacionadas ao carrinho, estoque e pedido precisam permanecer consistentes.
+
+A criação de um pedido é realizada dentro de uma **transação**, garantindo que as operações sejam confirmadas conjuntamente ou revertidas em caso de falha.
 
 ### 3.4 Duplicidade de operações
 
-Uma falha de rede ou um retry poderia criar o mesmo pedido e descontar o estoque novamente. O fluxo usa `Idempotency-Key` para evitar esse cenário.
+Uma requisição pode ser repetida devido a uma falha de rede ou a um mecanismo de retry.
 
-### 3.5 Dados históricos
-
-O repositório continha referências antigas a MariaDB. A aplicação atual usa somente PostgreSQL, e nenhum artefato físico de banco foi incluído no projeto.
+Para evitar que uma mesma operação gere pedidos duplicados ou desconte o estoque novamente, foi implementado o mecanismo de **idempotência utilizando `Idempotency-Key`**.
 
 ---
 
-## 4. Proposta da solução
+## 4. Proposta da Solução
 
-A solução é composta por três serviços coordenados pelo Docker Compose:
+A solução desenvolvida consiste em uma aplicação web composta por três serviços principais, coordenados pelo Docker Compose:
 
-1. **Frontend React**, compilado com Vite e servido por Nginx.
-2. **Backend Node.js e Express**, com regras de negócio e Prisma ORM.
-3. **PostgreSQL 15**, com volume persistente.
+1. **Frontend**, desenvolvido com React e Vite e servido pelo Nginx;
+2. **Backend**, desenvolvido com Node.js e Express, utilizando Prisma para acesso ao banco;
+3. **PostgreSQL**, responsável pela persistência dos dados.
 
-A solução também inclui:
+Além desses componentes, a solução possui mecanismos destinados a aumentar a confiabilidade da aplicação, como:
 
-- migrações versionadas com Prisma Migrate;
-- seed idempotente;
-- autenticação JWT com cookie `HttpOnly`;
-- revogação de sessões persistida;
-- transações de carrinho, estoque e pedido;
-- idempotência de pedidos;
-- scripts de backup, restauração e persistência;
-- CI e smoke test da stack.
+* migrações versionadas;
+* seed idempotente;
+* autenticação JWT;
+* cookies `HttpOnly`;
+* revogação de sessões;
+* transações;
+* idempotência de pedidos;
+* scripts de backup e restauração;
+* validação de persistência;
+* testes automatizados;
+* CI e smoke tests.
 
 ---
 
-## 5. Arquitetura da solução
+## 5. Arquitetura da Solução
 
-### 5.1 Topologia de rede
-
-Os serviços estão na rede bridge do Docker. O navegador acessa o frontend pela porta do host; a comunicação entre containers usa nomes e portas internas.
-
+A aplicação utiliza uma arquitetura baseada em containers Docker, com os serviços conectados por uma rede interna.
 ```text
 ┌────────────────────────────────────────────────────────────────────┐
 │                       REDE DOCKER (bridge)                          │
@@ -108,233 +137,349 @@ Os serviços estão na rede bridge do Docker. O navegador acessa o frontend pela
         Navegador no host
 ```
 
-O backend acessa o banco pelo nome interno `db` e pela porta `5432`. O Nginx atual encaminha as chamadas para `http://techstore_backend:3000/api/`, preservando o prefixo `/api/`.
+O navegador acessa o frontend por meio da porta `3001`. O Nginx encaminha as requisições que utilizam o prefixo `/api/` para o backend.
 
-### 5.2 Portas
+O backend acessa o PostgreSQL através da rede interna do Docker.
 
-| Serviço | Porta interna | Porta no host | Função |
-|---|---:|---:|---|
-| Frontend/Nginx | 8080 | 3001 | Interface e proxy |
-| Backend/Express | 3000 | 3002 | API REST |
-| PostgreSQL | 5432 | 5434 | Persistência local |
+### 5.1 Portas
 
-A porta `5434` é publicada somente no loopback para diagnóstico e evitar conflito com um PostgreSQL local.
+| Serviço         | Porta interna | Porta no host | Função            |
+| --------------- | ------------: | ------------: | ----------------- |
+| Frontend/Nginx  |          8080 |          3001 | Interface e proxy |
+| Backend/Express |          3000 |          3002 | API REST          |
+| PostgreSQL      |          5432 |          5434 | Persistência      |
 
-### 5.3 Camada de apresentação
-
-O frontend usa React e Vite. O Dockerfile faz um build em múltiplas etapas e entrega os arquivos estáticos em uma imagem Nginx sem privilégios de root.
-
-O Nginx:
-
-1. serve a aplicação React;
-2. encaminha requisições `/api/` ao backend pela rede Docker.
-
-Assim, o navegador usa uma origem pública única e não precisa conhecer o endereço interno do backend.
-
-### 5.4 Camada de aplicação
-
-O backend é organizado em camadas:
-
-- **Routes:** definem endpoints;
-- **Middlewares:** tratam autenticação, cookies, roles, CORS, rate limit e segurança;
-- **Controllers:** recebem requisições e formatam respostas;
-- **Services:** concentram regras de negócio;
-- **Repositories:** isolam as operações Prisma;
-- **Prisma:** executa consultas parametrizadas no PostgreSQL.
-
-A autenticação usa o cookie `sessionToken`. O middleware verifica JWT, expiração, `jti` e revogação. O acesso administrativo consulta o role no banco.
-
-### 5.5 Persistência e volume
-
-O PostgreSQL é o armazenamento principal da aplicação. O diretório `/var/lib/postgresql/data` é montado no volume Docker `pg_data`.
-
-| Comando | Resultado |
-|---|---|
-| `docker compose stop` | Para os serviços e preserva o volume |
-| `docker compose restart` | Reinicia preservando os dados |
-| `docker compose down` | Remove containers e rede, mas preserva o volume |
-| `docker compose up -d` | Recria os serviços e reutiliza o volume |
-| `docker compose down -v` | Remove também os dados; usar somente para reset intencional |
-
-A persistência é validada por `scripts/verify-persistence.sh`, que cria um registro-sentinela, executa `down` e `up` sem remover o volume e confirma que o registro continua existindo.
-
-### 5.6 Bootstrap
-
-A inicialização segue esta ordem:
-
-1. PostgreSQL executa `pg_isready`;
-2. o Compose espera o banco saudável;
-3. o backend gera o Prisma Client;
-4. o entrypoint executa `prisma migrate deploy`;
-5. o seed cria os registros de demonstração ausentes;
-6. o Express inicia;
-7. o frontend inicia após a API ficar pronta.
-
-O seed cria dois usuários e oito produtos quando eles ainda não existem. Ele não sobrescreve dados previamente cadastrados.
-
-### 5.7 Fluxo de criação de produto
-
-1. O navegador envia `POST /api/produtos` com o cookie `sessionToken`.
-2. O Nginx encaminha a requisição para `http://techstore_backend:3000/api/produtos`.
-3. O middleware valida o JWT e a revogação da sessão.
-4. O middleware administrativo consulta o role no banco.
-5. Controller e service validam os dados.
-6. O repository executa `prisma.produto.create(...)`.
-7. O PostgreSQL grava o produto em `pg_data`.
-8. A API retorna `201 Created` através do Nginx.
+A porta `5434` é publicada apenas para acesso local e diagnóstico.
 
 ---
 
-## 6. Tecnologias e ferramentas
+## 6. Componentes da Solução
 
-### Frontend
+### 6.1 Frontend
 
-React 19, Vite, React Router, Nginx, Vitest, Testing Library e Biome.
+O frontend foi desenvolvido utilizando **React e Vite**.
 
-### Backend
+O Dockerfile utiliza um build em múltiplas etapas, disponibilizando os arquivos gerados através do Nginx.
 
-Node.js 20, Express 5, Prisma 6, PostgreSQL, bcrypt, jsonwebtoken, Helmet, CORS, express-rate-limit, Jest e Biome.
+O Nginx possui duas responsabilidades principais:
 
-### Infraestrutura
+* disponibilizar a aplicação React;
+* encaminhar as requisições `/api/` para o backend.
 
-Docker, Docker Compose, volumes Docker, Git, GitHub Actions, Yarn, scripts Shell, `pg_dump` e `pg_restore`.
+Dessa forma, o navegador utiliza uma origem única para acessar a aplicação.
+
+### 6.2 Backend
+
+O backend foi desenvolvido utilizando **Node.js e Express**, com Prisma como ORM.
+
+A aplicação está organizada em camadas:
+
+* **Routes:** definição dos endpoints;
+* **Middlewares:** autenticação, cookies, roles, CORS, rate limit e segurança;
+* **Controllers:** tratamento das requisições e respostas;
+* **Services:** regras de negócio;
+* **Repositories:** operações relacionadas ao Prisma;
+* **Prisma:** acesso ao PostgreSQL.
+
+A autenticação utiliza JWT armazenado no cookie `sessionToken`.
+
+### 6.3 Banco de Dados
+
+O **PostgreSQL 15** é utilizado como armazenamento principal da aplicação.
+
+Seus dados são armazenados no volume Docker `pg_data`, permitindo que continuem disponíveis após a recriação dos containers.
 
 ---
 
-## 7. Justificativa das escolhas
+## 7. Persistência e Inicialização
+
+A inicialização da aplicação segue a seguinte sequência:
+
+```text
+PostgreSQL
+    ↓
+Healthcheck
+    ↓
+Banco disponível
+    ↓
+Prisma Client
+    ↓
+Migrações
+    ↓
+Seed
+    ↓
+Backend
+    ↓
+Frontend
+```
+
+O banco executa o `pg_isready` para verificar sua disponibilidade.
+
+Após o banco estar saudável:
+
+1. o backend gera o Prisma Client;
+2. as migrações são executadas;
+3. o seed verifica os registros necessários;
+4. o Express é iniciado;
+5. o frontend fica disponível.
+
+O seed é **idempotente**, portanto não sobrescreve dados previamente cadastrados.
+
+---
+
+## 8. Modelo de Dados
+
+O modelo de dados está definido em `backend/prisma/schema.prisma`.
+
+### DER conceitual simplificado
+
+O diagrama abaixo representa as entidades, os atributos principais e os relacionamentos implementados no modelo de dados.
+
+```mermaid
+erDiagram
+    USUARIOS ||--o{ CARRINHOS : possui
+    USUARIOS ||--o{ PEDIDOS : realiza
+    PRODUTOS ||--o{ CARRINHOS : referenciado
+    PEDIDOS ||--|{ PEDIDO_ITENS : contem
+    PRODUTOS ||--o{ PEDIDO_ITENS : referenciado
+
+    USUARIOS {
+        int id PK
+        string nome
+        string email UK
+        string senhaHash
+        string role
+    }
+
+    PRODUTOS {
+        int id PK
+        string nome
+        decimal preco
+        int stock
+    }
+
+    CARRINHOS {
+        int id PK
+        int usuario_id FK
+        int produto_id FK
+        int quantidade
+    }
+
+    PEDIDOS {
+        int id PK
+        int usuario_id FK
+        decimal total
+        string status
+        string idempotencyKey
+    }
+
+    PEDIDO_ITENS {
+        int id PK
+        int pedido_id FK
+        int produto_id FK
+        int quantidade
+        decimal preco_unitario
+        string nomeProduto
+    }
+
+    SESSOES_REVOGADAS {
+        int id PK
+        string jti
+        datetime revokedAt
+        datetime expiraEm
+    }
+```
+
+O diagrama apresenta os relacionamentos funcionais principais. As regras de unicidade, quantidades, valores e preservação dos snapshots são detalhadas nas seções seguintes.
+
+### Tabelas do modelo
+
+| Tabela              | Responsabilidade                                                   |
+| ------------------- | ------------------------------------------------------------------ |
+| `usuarios`          | Armazena usuários, roles e informações relacionadas à autenticação |
+| `produtos`          | Armazena catálogo, preço, categoria, imagem e estoque              |
+| `carrinhos`         | Relaciona usuários, produtos e quantidades                         |
+| `pedidos`           | Armazena pedidos, valores, status, entrega e pagamento             |
+| `pedido_itens`      | Armazena produtos, quantidades e preços dos pedidos                |
+| `sessoes_revogadas` | Armazena sessões ou tokens invalidados                             |
+
+### Principais relacionamentos
+
+* Um usuário pode possuir carrinhos e pedidos;
+* um carrinho pertence a um usuário e a um produto;
+* um pedido pertence a um usuário;
+* um pedido possui vários itens;
+* cada item mantém o nome e o preço do produto no momento da compra.
+
+### Regras de integridade
+
+O banco possui regras para garantir:
+
+* e-mail único;
+* usuário/produto único no carrinho;
+* quantidades positivas;
+* preços e estoques não negativos;
+* chave de idempotência única por usuário;
+* preservação do preço e nome do produto no momento da compra.
+
+---
+
+## 9. Tecnologias e Ferramentas
+
+| Camada             | Tecnologias                                                                                                      |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| **Frontend**       | React 19, Vite, React Router, Nginx, Vitest, Testing Library, Biome                                              |
+| **Backend**        | Node.js 20, Express 5, Prisma 6, PostgreSQL, bcrypt, jsonwebtoken, Helmet, CORS, express-rate-limit, Jest, Biome |
+| **Infraestrutura** | Docker, Docker Compose, volumes Docker, Git, GitHub Actions, Yarn, Shell, `pg_dump`, `pg_restore`                |
+
+---
+
+## 10. Justificativa das Escolhas Técnicas
 
 ### PostgreSQL
 
-Oferece transações ACID, relacionamentos, constraints e índices, especialmente importantes para carrinho, estoque e pedidos.
+O PostgreSQL foi escolhido por oferecer suporte a transações, relacionamentos, constraints e índices, características importantes para as operações de carrinho, estoque e pedidos.
 
 ### Prisma
 
-Centraliza o schema, reduz SQL manual e fornece acesso type-safe ao banco.
+O Prisma foi utilizado para centralizar o schema do banco e facilitar o acesso aos dados através de uma camada ORM.
 
 ### Docker Compose
 
-Permite reproduzir a stack completa com um único arquivo e comando.
+O Docker Compose permite definir os serviços da aplicação em conjunto e reproduzir o ambiente utilizando um único arquivo de configuração.
 
 ### Volume Docker
 
-Separa o ciclo de vida dos dados do ciclo de vida dos containers.
+O volume permite separar o ciclo de vida dos dados do ciclo de vida dos containers, garantindo a persistência das informações.
 
 ### Transações
 
-A criação de pedido altera estoque, itens, carrinho e pedido. A transação Prisma confirma tudo ou reverte tudo.
+As transações são utilizadas para garantir que operações relacionadas à criação do pedido, atualização do estoque e alteração do carrinho sejam executadas de maneira consistente.
 
 ### Idempotência
 
-`Idempotency-Key` evita que um retry crie outro pedido e desconte o estoque novamente.
+O uso de `Idempotency-Key` permite identificar operações repetidas e evitar a criação duplicada de pedidos.
 
 ### Testes automatizados
 
-Jest, Vitest e smoke tests tornam a validação reproduzível e independente de arquivos JSON.
+Jest, Vitest e smoke tests foram utilizados para tornar a validação da aplicação reproduzível.
 
 ---
 
-## 8. Modelo de dados
+## 11. Processo de Desenvolvimento
 
-O schema está em `backend/prisma/schema.prisma`.
+O desenvolvimento foi dividido em três etapas principais.
 
-| Tabela | Responsabilidade |
-|---|---|
-| `usuarios` | Usuários, roles, senhas hash e recuperação de senha |
-| `produtos` | Catálogo, preço, categoria, imagem e estoque |
-| `carrinhos` | Relação entre usuário, produto e quantidade |
-| `pedidos` | Total, status, entrega, pagamento e idempotência |
-| `pedido_itens` | Snapshot de produto, quantidade e preço cobrado |
-| `sessoes_revogadas` | Tokens invalidados por logout |
+### 11.1 Estabilização
 
-### Relacionamentos
+Nesta etapa foram implementados e configurados:
 
-- Um usuário possui carrinhos e pedidos.
-- Um carrinho pertence a um usuário e a um produto.
-- Um pedido pertence a um usuário e possui vários itens.
-- O item guarda o nome e o preço do produto no momento da compra.
-- Produtos vinculados a pedidos não podem ser excluídos livremente.
+* PostgreSQL;
+* volume persistente;
+* healthchecks;
+* seed;
+* sessões;
+* catálogo;
+* CORS;
+* proxy;
+* rate limit.
 
-### Integridades
+### 11.2 Consistência transacional
 
-- E-mail único.
-- Um par usuário/produto único no carrinho.
-- Quantidades positivas.
-- Preço, estoque e total não negativos.
-- Chave de idempotência única por usuário.
-- Snapshot de preço e nome no item do pedido.
+Nesta etapa foram implementados:
 
----
+* transação do checkout;
+* controle de concorrência;
+* controle de estoque;
+* restrição de usuário/produto no carrinho;
+* idempotência;
+* snapshots;
+* migrações.
 
-## 9. Processo de desenvolvimento
+### 11.3 Confiabilidade operacional
 
-### Etapa 1 — Estabilização
+A última etapa foi direcionada à validação e operação da aplicação:
 
-PostgreSQL, volume, healthchecks, seed, sessões, catálogo, CORS, proxy e rate limit.
+* backup;
+* restauração;
+* readiness;
+* smoke tests;
+* teste de persistência;
+* validação da integridade dos dados.
 
-### Etapa 2 — Consistência transacional
-
-Transação de checkout, lock por usuário, estoque condicional, carrinho único, idempotência, snapshots e migrações.
-
-### Etapa 3 — Confiabilidade operacional
-
-Backup, restore, readiness, smoke test, teste de persistência após `down/up` e validação de integridade dos dados.
-
-O desenvolvimento foi realizado em branches separadas, com revisão por Pull Request e merge na `develop`.
+O desenvolvimento foi realizado utilizando branches separadas, revisão por Pull Request e merge na branch `develop`.
 
 ---
 
-## 10. Práticas DevOps
+## 12. Práticas DevOps
 
-- configuração da stack como código;
-- rede Docker isolada;
-- volume persistente;
-- healthcheck do PostgreSQL e readiness da API;
-- `prisma migrate deploy`;
-- seed idempotente;
-- CI com PostgreSQL, testes e build;
-- smoke test da stack completa;
-- backup com `pg_dump` e restore com `pg_restore`;
-- `.env` e segredos fora do Git;
-- scripts de persistência automatizados.
+Durante o desenvolvimento foram aplicadas as seguintes práticas:
 
-Scripts operacionais:
+* configuração da infraestrutura como código;
+* utilização de Docker e Docker Compose;
+* rede Docker dedicada;
+* volume persistente;
+* healthcheck do PostgreSQL;
+* readiness da API;
+* migrações automatizadas;
+* seed idempotente;
+* integração contínua;
+* smoke tests;
+* backup e restauração;
+* gerenciamento de secrets fora do Git;
+* scripts operacionais.
+
+### Scripts
 
 ```text
-scripts/backup.sh
-scripts/restore.sh
-scripts/verify-backup.sh
-scripts/verify-persistence.sh
+scripts/
+├── backup.sh
+├── restore.sh
+├── verify-backup.sh
+└── verify-persistence.sh
 ```
+
+Esses scripts permitem automatizar tarefas relacionadas à operação e validação da aplicação.
 
 ---
 
-## 11. Execução do projeto
+## 13. Execução do Projeto
 
-### Pré-requisitos
+### 13.1 Pré-requisitos
 
-- Git;
-- Docker;
-- Docker Compose v2;
-- portas livres `3001`, `3002` e `5434`.
+Para executar o projeto, é necessário possuir:
 
-### Subir a aplicação
+* Git;
+* Docker;
+* Docker Compose v2;
+* portas `3001`, `3002` e `5434` disponíveis.
+
+### 13.2 Clonando o projeto
 
 ```bash
 git clone https://github.com/laas26/techstore-db-mvp.git
 cd techstore-db-mvp
+```
+
+### 13.3 Inicializando a aplicação
+
+```bash
 docker compose up -d --build
 ```
 
-### Verificar
+### 13.4 Verificando os containers
 
 ```bash
 docker compose ps
-curl http://localhost:3002/health/ready
-curl http://localhost:3001/
-curl http://localhost:3002/api/produtos
 ```
 
-O readiness deve retornar:
+### 13.5 Verificando a API
+
+```bash
+curl http://localhost:3002/health/ready
+```
+
+O resultado esperado é:
 
 ```json
 {
@@ -343,60 +488,99 @@ O readiness deve retornar:
 }
 ```
 
-### Acessos
+### 13.6 Acessos
 
-| Serviço | URL |
-|---|---|
-| Frontend | http://localhost:3001 |
-| API | http://localhost:3002 |
-| Health | http://localhost:3002/health |
-| Readiness | http://localhost:3002/health/ready |
+| Serviço   | Endereço                             |
+| --------- | ------------------------------------ |
+| Frontend  | `http://localhost:3001`              |
+| API       | `http://localhost:3002`              |
+| Health    | `http://localhost:3002/health`       |
+| Readiness | `http://localhost:3002/health/ready` |
 
-### Usuários de demonstração
+### 13.7 Usuários de demonstração
 
-| Perfil | E-mail | Senha |
-|---|---|---|
-| Admin | `admin@techstore.local` | `Admin@123` |
+| Perfil  | E-mail                    | Senha         |
+| ------- | ------------------------- | ------------- |
+| Admin   | `admin@techstore.local`   | `Admin@123`   |
 | Cliente | `cliente@techstore.local` | `Cliente@123` |
 
-Essas credenciais são apenas para demonstração.
+As credenciais apresentadas são destinadas exclusivamente à demonstração do MVP.
 
-### Comandos operacionais
+### 13.8 Comandos operacionais
+
+Visualizar logs:
 
 ```bash
 docker compose logs -f backend
-docker compose down
-docker compose up -d
+```
 
+Parar a aplicação:
+
+```bash
+docker compose down
+```
+
+Iniciar novamente:
+
+```bash
+docker compose up -d
+```
+
+Executar backup:
+
+```bash
 sh scripts/backup.sh
+```
+
+Verificar backup:
+
+```bash
 sh scripts/verify-backup.sh
+```
+
+Verificar persistência:
+
+```bash
 sh scripts/verify-persistence.sh
 ```
 
-Restauração:
+Para restauração:
 
 ```bash
 CONFIRM_RESTORE=YES sh scripts/restore.sh backups/NOME_DO_BACKUP.dump
 ```
 
-Não use `docker compose down -v` para reiniciar a aplicação: essa opção remove o volume.
+> **Atenção:** `docker compose down -v` remove também o volume e, consequentemente, os dados persistidos. Esse comando deve ser utilizado somente quando a intenção for realizar um reset completo do ambiente.
 
 ---
 
-## 12. Testes e validações
+## 14. Testes e Validações
 
-### Backend
+### 14.1 Testes do Backend
+
+Para executar os testes:
 
 ```bash
 cd backend
 yarn test --runInBand
 ```
 
-A suíte cobre autenticação, seed, sessões, carrinho, rollback, concorrência, oversell, idempotência, readiness e snapshots.
+A suíte contempla cenários relacionados a:
 
-Resultado: **9 suítes e 32 testes passando**.
+* autenticação;
+* seed;
+* sessões;
+* carrinho;
+* rollback;
+* concorrência;
+* oversell;
+* idempotência;
+* readiness;
+* snapshots.
 
-### Frontend
+**Resultado:** 9 suítes e 32 testes passando.
+
+### 14.2 Testes do Frontend
 
 ```bash
 cd frontend
@@ -404,108 +588,131 @@ yarn vitest run
 yarn build
 ```
 
-Resultado: **3 arquivos e 4 testes frontend passando**, com build concluído.
+**Resultado:** 3 arquivos e 4 testes passando, com build concluído.
 
-### Infraestrutura
+### 14.3 Validações de infraestrutura
 
-- `docker compose config`;
-- `npx prisma validate`;
-- `npx prisma migrate status`;
-- `sh -n` nos scripts;
-- `git diff --check`.
+Também foram executadas validações utilizando:
 
-### Smoke test Docker
+```bash
+docker compose config
 
-O workflow verifica:
+docker compose exec backend npx prisma validate
+docker compose exec backend npx prisma migrate status
 
-1. frontend `200`;
-2. readiness da API e PostgreSQL;
-3. produtos do seed;
-4. backup;
-5. restauração em banco temporário;
-6. persistência após `down/up`.
+sh -n scripts/backup.sh
+sh -n scripts/restore.sh
+sh -n scripts/verify-backup.sh
+sh -n scripts/verify-persistence.sh
+
+git diff --check
+```
+
+### 14.4 Smoke Test
+
+O smoke test verifica:
+
+1. disponibilidade do frontend;
+2. readiness da API;
+3. disponibilidade do PostgreSQL;
+4. existência dos produtos do seed;
+5. realização do backup;
+6. restauração em banco temporário;
+7. persistência dos dados após `down/up`.
 
 ---
 
-## 13. Resultados
+## 15. Resultados Obtidos
 
-O projeto demonstra:
+Os testes e validações realizados demonstraram que o MVP apresenta os seguintes comportamentos:
 
-- persistência no PostgreSQL;
-- sobrevivência do volume;
-- inicialização automática;
-- seed sem duplicação;
-- sessões persistentes e revogáveis;
-- checkout transacional;
-- prevenção de oversell nos testes;
-- rollback;
-- idempotência;
-- snapshot de produtos;
-- readiness do banco;
-- backup e restauração;
-- persistência verificada com sentinel;
-- CI e smoke test da stack real.
+* persistência dos dados no PostgreSQL;
+* sobrevivência dos dados armazenados no volume Docker;
+* inicialização automatizada da aplicação;
+* seed sem duplicação;
+* autenticação com revogação de sessões persistida;
+* checkout transacional;
+* prevenção de oversell nos testes;
+* rollback de operações;
+* idempotência de pedidos;
+* snapshot de produtos;
+* readiness do banco;
+* backup e restauração;
+* verificação automatizada da persistência;
+* integração contínua;
+* smoke test da stack.
 
-A stack local é iniciada com:
+A aplicação pode ser iniciada utilizando:
 
 ```bash
 docker compose up -d --build
 ```
 
----
-
-## 14. Limitações
-
-- O pagamento é simulado.
-- O estoque é debitado na criação do pedido e não possui reserva expirável.
-- O Compose é voltado para desenvolvimento e usa `yarn dev` com bind mount.
-- As credenciais padrão são somente para demonstração.
-- Não há backup externo, retenção ou recuperação point-in-time.
-- Não há staging ou produção.
-- Pedidos, usuários e partes do admin ainda possuem telas incompletas.
-- Não há observabilidade avançada.
-- A lint da CI permanece não bloqueante enquanto a dívida de formatação é tratada.
-
-Essas limitações são aceitáveis para o escopo do MVP, mas devem ser resolvidas antes de uso real.
+A persistência é validada através do script `scripts/verify-persistence.sh`, que verifica se os dados continuam disponíveis após a interrupção e recriação da stack sem remoção do volume.
 
 ---
 
-## 15. Evoluções futuras
+## 16. Limitações da Solução
 
-As evoluções devem priorizar persistência e gestão de dados.
+Por se tratar de um MVP, algumas funcionalidades e características ainda não estão implementadas.
 
-### 15.1 Reservas e expiração de estoque
+As principais limitações identificadas são:
 
-Reservar itens durante o checkout e liberar a reserva quando o pagamento não for concluído.
+* o pagamento é simulado;
+* o estoque é debitado na criação do pedido e não possui reserva expirável;
+* o Docker Compose está direcionado ao ambiente de desenvolvimento;
+* as credenciais padrão são destinadas somente à demonstração;
+* não existe backup externo com retenção;
+* não existe recuperação point-in-time;
+* não existe ambiente de staging ou produção;
+* algumas telas relacionadas a pedidos, usuários e administração ainda estão incompletas;
+* não existe observabilidade avançada;
+* a validação de lint na CI ainda não é bloqueante.
 
-### 15.2 Histórico de pedidos e pagamentos
-
-Registrar eventos, tentativas, cancelamentos, estornos, status, valores e provedores.
-
-### 15.3 Ledger de estoque
-
-Criar movimentações de entrada, saída, venda, ajuste, cancelamento e reposição, formando uma trilha auditável.
-
-### 15.4 Backup avançado
-
-Adicionar retenção, criptografia, ambientes separados e recuperação point-in-time.
-
-### 15.5 Migrações mais seguras
-
-Adicionar preflight, detecção de dados incompatíveis, deduplicação e ensaios em cópia do banco.
-
-### 15.6 Desempenho e auditoria
-
-Adicionar paginação, índices, filtros, enums, soft delete, trilha de auditoria e política de retenção de dados pessoais.
-
-### 15.7 Evolução do catálogo
-
-Persistir SKU, padronizar categorias e manter a consistência entre admin, vitrine e banco.
+Essas limitações estão relacionadas ao escopo do MVP e devem ser consideradas antes de uma utilização em ambiente real.
 
 ---
 
-## 16. Conclusão
+## 17. Evoluções Futuras
 
-O projeto atende ao escopo de um MVP acadêmico de persistência e gestão de dados. A combinação de PostgreSQL, volume Docker, migrações, seed idempotente, transações, idempotência, readiness, backup e smoke tests oferece uma base reproduzível para a avaliação.
+Como possíveis evoluções da solução, foram identificadas as seguintes melhorias:
 
-As evoluções futuras devem manter o foco em integridade, auditoria, recuperação, rastreabilidade e desempenho dos dados antes de adicionar novas funcionalidades de produto.
+### 17.1 Reserva e expiração de estoque
+
+Implementar reserva temporária de produtos durante o checkout, liberando o estoque quando o pagamento não for concluído.
+
+### 17.2 Histórico de pedidos e pagamentos
+
+Registrar eventos relacionados a tentativas, cancelamentos, estornos, alterações de status e pagamentos.
+
+### 17.3 Ledger de estoque
+
+Criar uma trilha de movimentações de estoque, registrando entradas, saídas, vendas, ajustes, cancelamentos e reposições.
+
+### 17.4 Backup avançado
+
+Adicionar mecanismos de retenção, criptografia, ambientes separados e recuperação point-in-time.
+
+### 17.5 Migrações mais seguras
+
+Adicionar verificações prévias, detecção de dados incompatíveis, deduplicação e testes das migrações.
+
+### 17.6 Performance e auditoria
+
+Implementar paginação, índices adicionais, filtros, soft delete e trilha de auditoria.
+
+### 17.7 Evolução do catálogo
+
+Adicionar recursos como SKU e padronização das categorias, mantendo a consistência entre administração, vitrine e banco.
+
+---
+
+## 18. Conclusão
+
+O desenvolvimento do MVP TechStore permitiu implementar uma aplicação web com foco em **persistência, consistência e confiabilidade dos dados**.
+
+A utilização do PostgreSQL em conjunto com volumes Docker possibilitou separar o armazenamento dos dados do ciclo de vida dos containers. Além disso, mecanismos como transações, idempotência, migrações, seed, autenticação, backup e restauração contribuíram para aumentar a confiabilidade da aplicação.
+
+Os testes realizados demonstraram o funcionamento dos principais componentes do sistema, incluindo a persistência dos dados após a recriação da stack, os testes automatizados do backend e frontend e os smoke tests da infraestrutura.
+
+Apesar das limitações existentes, principalmente por se tratar de um MVP, a solução atende aos requisitos definidos para o projeto e fornece uma base para futuras evoluções relacionadas à segurança, observabilidade, desempenho, pagamentos, estoque e operação em ambientes de produção.
