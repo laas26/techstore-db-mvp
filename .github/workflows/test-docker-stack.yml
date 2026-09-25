@@ -7,8 +7,10 @@
 #
 # O que é validado aqui:
 #  1. Frontend (Nginx) responde 200 OK na porta 3001;
-#  2. API do backend responde 200 OK em GET /api/produtos (porta 3002);
-#  3. O JSON de produtos vem populado pelo seed (array não vazio).
+#  2. API do backend e o PostgreSQL respondem 200 OK em /health/ready (porta 3002);
+#  3. O JSON de produtos vem populado pelo seed (array não vazio);
+#  4. Backup e restauração são verificados;
+#  5. A persistência é verificada após down/up sem remover o volume.
 #
 # Em caso de falha, os logs dos containers são anexados ao job para diagnóstico.
 
@@ -44,6 +46,7 @@ jobs:
           echo "⏳ Aguardando entrypoint.sh concluir migrate deploy + seed..."
           for i in $(seq 1 60); do
             if curl -sf http://localhost:3001/ >/dev/null \
+              && curl -sf http://localhost:3002/health/ready >/dev/null \
               && curl -sf http://localhost:3002/api/produtos >/dev/null; then
               echo "✅ Stack pronta após ${i} tentativa(s)."
               exit 0
@@ -63,7 +66,16 @@ jobs:
             exit 1
           fi
 
-      - name: "Smoke test 2 — API de produtos responde 200 OK (porta 3002)"
+      - name: "Smoke test 2 — Readiness da API e PostgreSQL"
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3002/health/ready)
+          echo "GET http://localhost:3002/health/ready -> ${code}"
+          if [ "${code}" != "200" ]; then
+            echo "::error::A API não ficou pronta para receber tráfego."
+            exit 1
+          fi
+
+      - name: "Smoke test 3 — API de produtos responde 200 OK (porta 3002)"
         run: |
           code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3002/api/produtos)
           echo "GET http://localhost:3002/api/produtos -> ${code}"
@@ -72,7 +84,7 @@ jobs:
             exit 1
           fi
 
-      - name: "Smoke test 3 — Produtos semeados pelo seed.js presentes no JSON"
+      - name: "Smoke test 4 — Produtos semeados pelo seed.js presentes no JSON"
         run: |
           corpo=$(curl -s http://localhost:3002/api/produtos)
           echo "Resposta da API:"
@@ -92,6 +104,12 @@ jobs:
             echo "::error::Seed não populou nenhum produto."
             exit 1
           fi
+
+      - name: "Smoke test 5 — Backup e restauração do PostgreSQL"
+        run: sh scripts/verify-backup.sh
+
+      - name: "Smoke test 6 — Persistência após down/up sem remover o volume"
+        run: sh scripts/verify-persistence.sh
 
       # Sempre que qualquer passo falhar, expõe o estado e os logs para diagnóstico.
       - name: Diagnóstico — logs dos containers
