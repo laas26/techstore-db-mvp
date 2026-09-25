@@ -2,6 +2,7 @@
 export default function Footer() {
 	return (
 		<footer
+			className="site-footer"
 			style={{
 				minHeight: "121px",
 				background: "#FFFFFF",

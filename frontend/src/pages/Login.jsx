@@ -78,6 +78,7 @@ export default function Login() {
 			<Navbar />
 
 			<main
+				className="auth-main"
 				style={{
 					flex: 1,
 					display: "flex",
@@ -100,6 +101,7 @@ export default function Login() {
 			</main>
 
 			<footer
+				className="auth-footer"
 				style={{
 					minHeight: "121px",
 					background: "#FFFFFF",

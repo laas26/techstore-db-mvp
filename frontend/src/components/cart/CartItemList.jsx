@@ -15,8 +15,8 @@ export default function CartItemList({
 	onRemoverProduto,
 }) {
 	return (
-		<section style={styles.products}>
-			<div style={styles.tableHeader}>
+		<section className="cart-items" style={styles.products}>
+			<div className="cart-items-header" style={styles.tableHeader}>
 				<span>Produto</span>
 				<span>Quantidade</span>
 				<span>Subtotal</span>
@@ -25,9 +25,9 @@ export default function CartItemList({
 
 			{produtos.length > 0 ? (
 				produtos.map((produto) => (
-					<article style={styles.itemCard} key={produto.id}>
-						<div style={styles.productInfo}>
-							<div style={styles.imageWrap}>
+					<article className="cart-item-card" style={styles.itemCard} key={produto.id}>
+						<div className="cart-item-product" style={styles.productInfo}>
+							<div className="cart-item-image" style={styles.imageWrap}>
 								<img
 									style={styles.productImage}
 									src={produto.imagem}
@@ -37,11 +37,13 @@ export default function CartItemList({
 							<div style={styles.productText}>
 								<h2 style={styles.productTitle}>{produto.nome}</h2>
 								<p style={styles.productDescription}>{produto.descricao}</p>
-								<p style={styles.mobilePrice}>{formatarPreco(produto.preco)}</p>
+								<p className="cart-item-unit-price" style={styles.mobilePrice}>
+									{formatarPreco(produto.preco)}
+								</p>
 							</div>
 						</div>
 
-						<div style={styles.quantity}>
+						<div className="cart-item-quantity" style={styles.quantity}>
 							<button
 								style={styles.quantityButton}
 								type="button"
@@ -61,11 +63,12 @@ export default function CartItemList({
 							</button>
 						</div>
 
-						<strong style={styles.itemSubtotal}>
+						<strong className="cart-item-subtotal" style={styles.itemSubtotal}>
 							{formatarPreco(produto.preco * produto.quantidade)}
 						</strong>
 
 						<button
+							className="cart-item-remove"
 							style={styles.removeButton}
 							type="button"
 							aria-label={`Remover ${produto.nome}`}

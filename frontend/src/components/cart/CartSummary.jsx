@@ -16,7 +16,7 @@ export default function CartSummary({ produtos, subtotal }) {
 	);
 
 	return (
-		<aside style={styles.summary}>
+		<aside className="cart-summary" style={styles.summary}>
 			<h2 style={styles.sectionTitle}>Resumo do Pedido</h2>
 			<div style={styles.summaryRows}>
 				<div style={styles.summaryRow}>

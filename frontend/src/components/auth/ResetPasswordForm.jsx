@@ -154,7 +154,7 @@ export default function ResetPasswordForm() {
 	);
 
 	return (
-		<section style={styles.card}>
+		<section className="auth-card" style={styles.card}>
 			<div style={styles.header}>
 				<h1 style={styles.title}>Alterar senha</h1>
 				<p style={styles.subtitle}>

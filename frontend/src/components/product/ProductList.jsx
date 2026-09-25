@@ -9,6 +9,7 @@ export default function ProductList({
 }) {
 	return (
 		<section
+			className="product-grid"
 			aria-label="Produtos"
 			style={{
 				display: "grid",

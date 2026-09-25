@@ -8,9 +8,9 @@ export default function Cart() {
 		useCart();
 
 	return (
-		<div style={styles.page}>
+		<div className="cart-page" style={styles.page}>
 			<section style={styles.header}>
-				<h1 style={styles.title}>Carrinho de Compras</h1>
+				<h1 className="cart-title" style={styles.title}>Carrinho de Compras</h1>
 				<p style={styles.subtitle}>
 					Revise seus itens de alta performance antes de finalizar.
 				</p>
@@ -32,7 +32,7 @@ export default function Cart() {
 				)}
 			</div>
 
-			<footer style={styles.footer}>
+			<footer className="cart-footer" style={styles.footer}>
 				<div style={styles.footerContent}>
 					<a href="/about" style={styles.footerLink}>
 						Quem Somos

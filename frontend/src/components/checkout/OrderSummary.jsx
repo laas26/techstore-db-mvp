@@ -16,7 +16,7 @@ export default function OrderSummary({
 	onFinalizarCompra,
 }) {
 	return (
-		<aside style={styles.summary}>
+		<aside className="checkout-summary" style={styles.summary}>
 			<h2 style={styles.sectionTitle}>Resumo do Pedido</h2>
 
 			<div style={styles.summaryRows}>

@@ -1,9 +1,9 @@
 // Coleta os dados necessarios para a entrega do pedido.
 export default function AddressForm({ dados, mensagem, onChange, onSave }) {
   return (
-    <section style={styles.card}>
+    <section className="checkout-address-card" style={styles.card}>
       <h2 style={styles.sectionTitle}>Dados de Entrega</h2>
-      <form style={styles.form} onSubmit={onSave}>
+      <form className="checkout-address-form" style={styles.form} onSubmit={onSave}>
         <label style={{ ...styles.field, gridColumn: '1 / -1' }}>
           <span style={styles.label}>Nome Completo</span>
           <input
@@ -64,7 +64,7 @@ export default function AddressForm({ dados, mensagem, onChange, onSave }) {
 
         <label style={styles.field}>
           <span style={styles.label}>CEP</span>
-          <div style={styles.inlineField}>
+          <div className="checkout-inline-field" style={styles.inlineField}>
             <input
               style={styles.input}
               type="text"

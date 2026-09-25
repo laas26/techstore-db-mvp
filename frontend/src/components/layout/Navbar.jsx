@@ -1,5 +1,5 @@
 // Navegação principal, busca, acesso ao carrinho e menu da sessão atual.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { logout } from "../../services/authService";
@@ -8,10 +8,16 @@ import ProductSearch from "../product/ProductSearch";
 // Navegacao principal compartilhada pelas paginas publicas.
 export function Navbar() {
 	const [menuPerfilAberto, setMenuPerfilAberto] = useState(false);
+	const [menuMobileAberto, setMenuMobileAberto] = useState(false);
 	const { pathname } = useLocation();
 	const { usuarioLogado, setUsuarioLogado, eAdmin, eCliente } = useAuth();
 	const navigate = useNavigate();
 	const isHome = pathname === "/";
+
+	useEffect(() => {
+		setMenuMobileAberto(false);
+		setMenuPerfilAberto(false);
+	}, [pathname]);
 
 	async function handleLogout() {
 		try {
@@ -34,35 +40,76 @@ export function Navbar() {
 		setMenuPerfilAberto((aberto) => !aberto);
 	}
 
+	function fecharMenuMobile() {
+		setMenuMobileAberto(false);
+	}
+
 	return (
-		<header style={styles.header}>
-			<div style={styles.container}>
-				<Link to="/" style={styles.logoLink}>
-					<img src="/logo.svg" alt="TechStore" style={styles.logo} />
+		<header className="site-header" style={styles.header}>
+			<div className="site-header-container" style={styles.container}>
+				<Link className="site-logo-link" to="/" style={styles.logoLink}>
+					<img className="site-logo" src="/logo.svg" alt="TechStore" style={styles.logo} />
 				</Link>
 
-				<nav style={styles.navigation}>
-					<Link to="/" style={isHome ? styles.activeLink : styles.navLink}>
+				<button
+					className="site-menu-toggle"
+					type="button"
+					aria-controls="site-navigation"
+					aria-expanded={menuMobileAberto}
+					aria-label={menuMobileAberto ? "Fechar menu" : "Abrir menu"}
+					onClick={() => setMenuMobileAberto((aberto) => !aberto)}
+				>
+					<svg
+						width="24"
+						height="24"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2"
+						aria-hidden="true"
+					>
+						<path d="M4 6h16M4 12h16M4 18h16" />
+					</svg>
+				</button>
+
+				<nav
+					id="site-navigation"
+					className={`site-navigation${menuMobileAberto ? " is-open" : ""}`}
+					style={styles.navigation}
+				>
+					<Link
+						to="/"
+						onClick={fecharMenuMobile}
+						style={isHome ? styles.activeLink : styles.navLink}
+					>
 						Loja
 					</Link>
-					<Link to="/support" style={styles.navLink}>
+					<Link to="/support" onClick={fecharMenuMobile} style={styles.navLink}>
 						Suporte
 					</Link>
 					{eAdmin && (
-						<Link to="/dashboard" style={styles.adminLink}>
+						<Link
+							to="/dashboard"
+							onClick={fecharMenuMobile}
+							style={styles.adminLink}
+						>
 							Painel de Gestão
 						</Link>
 					)}
 					{eCliente && (
-						<Link to="/client" style={styles.adminLink}>
+						<Link
+							to="/client"
+							onClick={fecharMenuMobile}
+							style={styles.adminLink}
+						>
 							Minha área
 						</Link>
 					)}
 				</nav>
 
-				<ProductSearch />
+				<ProductSearch className="site-search" />
 
-				<div style={styles.actions}>
+				<div className="site-actions" style={styles.actions}>
 					<Link to="/cart" aria-label="Carrinho" style={styles.iconLink}>
 						<svg {...iconProps}>
 							<title>Ícone do carrinho</title>
@@ -82,7 +129,9 @@ export function Navbar() {
 							style={styles.profileButton}
 						>
 							{usuarioLogado?.nome && (
-								<span style={styles.userName}>Olá, {usuarioLogado.nome}</span>
+								<span className="site-user-name" style={styles.userName}>
+									Olá, {usuarioLogado.nome}
+								</span>
 							)}
 							<svg {...iconProps}>
 								<title>Ícone do perfil</title>

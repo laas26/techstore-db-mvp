@@ -16,11 +16,21 @@ function AppShell() {
     '/reset-password',
   ].includes(pathname);
   const isHomePage = pathname === '/';
+  const isAdminPage = [
+    '/dashboard',
+    '/products',
+    '/orders',
+    '/users',
+    '/pix',
+  ].includes(pathname);
 
   return (
     <>
       {!isAuthPage && <Navbar />}
-      <main style={{ padding: isAuthPage || isHomePage ? 0 : '2rem' }}>
+      <main
+        className={`app-content${isAuthPage || isHomePage || isAdminPage ? ' app-content-flush' : ''}`}
+        style={{ padding: isAuthPage || isHomePage || isAdminPage ? 0 : '2rem' }}
+      >
         <AppRoutes />
       </main>
     </>

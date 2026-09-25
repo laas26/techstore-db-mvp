@@ -45,6 +45,7 @@ export default function HeroSlider() {
 
 	return (
 		<section
+			className="hero-slider"
 			style={{
 				minHeight: "340px",
 				marginBottom: "48px",
@@ -59,8 +60,9 @@ export default function HeroSlider() {
 				padding: "48px 64px",
 			}}
 		>
-			<div style={{ maxWidth: "680px" }}>
+			<div className="hero-slider-content" style={{ maxWidth: "680px" }}>
 				<h1
+					className="hero-slider-title"
 					style={{
 						margin: "0 0 16px",
 						color: "#2563EB",
@@ -72,6 +74,7 @@ export default function HeroSlider() {
 					{slides[slideAtual].titulo}
 				</h1>
 				<p
+					className="hero-slider-description"
 					style={{
 						color: "#4B5563",
 						fontSize: "20px",
@@ -84,6 +87,7 @@ export default function HeroSlider() {
 			</div>
 
 			<button
+				className="hero-slider-control hero-slider-control-prev"
 				type="button"
 				aria-label="Slide anterior"
 				onClick={irParaSlideAnterior}
@@ -106,6 +110,7 @@ export default function HeroSlider() {
 				‹
 			</button>
 			<button
+				className="hero-slider-control hero-slider-control-next"
 				type="button"
 				aria-label="Próximo slide"
 				onClick={irParaProximoSlide}

@@ -32,6 +32,7 @@ export default function Home() {
       }}
     >
       <main
+        className="home-main"
         style={{
           width: '100%',
           maxWidth: '1200px',
@@ -42,6 +43,7 @@ export default function Home() {
       >
         <HeroSlider />
         <div
+          className="home-catalog-layout"
           style={{
             display: 'grid',
             gridTemplateColumns: 'minmax(220px, 260px) 1fr',

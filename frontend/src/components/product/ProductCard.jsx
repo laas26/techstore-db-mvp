@@ -8,7 +8,7 @@ const formatarPreco = (valor) =>
 export default function ProductCard({ produto, quantidade = 0, onAdicionar }) {
   return (
     <article
-      className="card"
+      className="card product-card"
       style={{
         overflow: 'hidden',
         display: 'flex',
