@@ -10,7 +10,7 @@
 
 O desafio principal era garantir a persistência e a resiliência de dados críticos (usuários, autenticação, produtos) sem depender do ciclo de vida efémero dos contêineres.
 
-**Solução:** Isolamento da camada de dados em um serviço dedicado com volume persistente nomeado, orquestração com arranque determinístico (healthcheck) e rotina de bootstrap automática e idempotente (criação de esquema e seed sem duplicação de dados).
+**Solução:** Isolamento da camada de dados em um serviço dedicado com volume persistente nomeado, orquestração com arranque determinístico (healthcheck) e rotina de bootstrap automática e idempotente (aplicação de migrações e seed sem duplicação de dados).
 
 ---
 
@@ -62,7 +62,7 @@ docker compose up -d --build
 ## 🔗 Links de Acesso
 
 * 🛍️ **Aplicação Web** ➔ http://localhost:3001
-* 🔌 **API Health** ➔ http://localhost:3002/health
+* 🔌 **API Health / Readiness** ➔ http://localhost:3002/health/ready
 
 ---
 
@@ -89,6 +89,9 @@ docker compose up -d
 # 3. Verifique a permanência dos dados no banco
 docker compose exec db psql -U techstore_user -d techstore_v2 \
   -c "SELECT COUNT(*) FROM usuarios; SELECT COUNT(*) FROM produtos;"
+
+# 4. Execute a verificação automatizada de persistência
+sh scripts/verify-persistence.sh
 ```
 ---
 
