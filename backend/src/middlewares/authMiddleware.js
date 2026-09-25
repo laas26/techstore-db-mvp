@@ -1,34 +1,41 @@
-// Valida o JWT recebido no cookie HttpOnly e anexa o usuário à requisição.
-const jwt = require("jsonwebtoken");
-const { obterJwtSecret } = require("../services/authService");
-const { sessaoFoiRevogada } = require("../services/sessionService");
+const jwt = require('jsonwebtoken');
+const { obterJwtSecret } = require('../services/authService');
+const { sessaoFoiRevogada } = require('../services/sessionService');
 
-function authMiddleware(req, res, next) {
-	// Pega o token do cookie (graças ao cookie-parser)
-	const token = req.cookies.sessionToken;
+async function authMiddleware(req, res, next) {
+  const token = req.cookies?.sessionToken;
 
-	if (!token) {
-		return res
-			.status(401)
-			.json({ erro: "Acesso negado. Token não fornecido." });
-	}
+  if (!token) {
+    return res
+      .status(401)
+      .json({ erro: 'Acesso negado. Token não fornecido.' });
+  }
 
-	try {
-		const secret = obterJwtSecret();
-		const decoded = jwt.verify(token, secret);
+  let decoded;
+  try {
+    decoded = jwt.verify(token, obterJwtSecret());
+  } catch (error) {
+    console.error('Falha na autenticação do token:', error);
+    return res.status(403).json({ erro: 'Token inválido ou expirado.' });
+  }
 
-		if (sessaoFoiRevogada(decoded.jti)) {
-			return res.status(401).json({ erro: "Sessão invalidada." });
-		}
+  if (!decoded.jti || !decoded.exp) {
+    return res.status(403).json({ erro: 'Token sem claims de sessão.' });
+  }
 
-		// Anexa os dados do usuário decodificados à requisição para uso posterior nas rotas
-		req.usuarioId = decoded.id;
+  try {
+    if (await sessaoFoiRevogada(decoded.jti)) {
+      return res.status(401).json({ erro: 'Sessão invalidada.' });
+    }
+  } catch (error) {
+    console.error('Falha ao consultar sessões revogadas:', error);
+    return res
+      .status(503)
+      .json({ erro: 'Serviço de autenticação indisponível.' });
+  }
 
-		next();
-	} catch (error) {
-		console.error("Falha na autenticação do token:", error);
-		return res.status(403).json({ erro: "Token inválido ou expirado." });
-	}
+  req.usuarioId = decoded.id;
+  return next();
 }
 
 module.exports = authMiddleware;

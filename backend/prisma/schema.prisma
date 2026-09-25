@@ -74,8 +74,11 @@ model PedidoItem {
 
 model SessaoRevogada {
   id         Int      @id @default(autoincrement())
-  token      String   @db.Text
-  revoked_at DateTime @default(now())
+  jti        String   @map("token") @db.Text
+  revokedAt  DateTime @default(now()) @map("revoked_at")
+  expiraEm   DateTime?
 
+  @@index([jti])
+  @@index([expiraEm])
   @@map("sessoes_revogadas")
 }

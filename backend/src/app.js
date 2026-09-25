@@ -1,5 +1,3 @@
-// src/app.js
-// Configura o aplicativo Express, middlewares globais e registro das rotas da API.
 require('dotenv').config();
 
 const express = require('express');
@@ -16,9 +14,16 @@ const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
 
-app.set('trust proxy', 1);
+function parseTrustProxy(value) {
+  if (!value) return false;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  if (/^\d+$/.test(value)) return Number(value);
+  return value;
+}
 
-// Configuração do Helmet liberando as portas oficiais do Docker na política CSP
+app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
+
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -37,22 +42,29 @@ app.use(
   }),
 );
 
-// Configuração do CORS dinâmica baseada na própria origem da requisição
-const origensPermitidas = [
+const defaultOrigins = [
+  'http://localhost',
+  'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:3002',
-  'http://localhost',
-  'http://localhost:5173'
+  'http://localhost:5173',
 ];
+const configuredOrigins =
+  process.env.FRONTEND_ORIGINS || process.env.FRONTEND_ORIGIN;
+const allowedOrigins = new Set(
+  (configuredOrigins || defaultOrigins.join(','))
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+);
 
 app.use(
   cors({
-    origin: function (origin, callback) {
-      if (!origin || origensPermitidas.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        callback(null, true);
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.has(origin)) {
+        return callback(null, true);
       }
+      return callback(null, false);
     },
     credentials: true,
   }),
@@ -61,12 +73,10 @@ app.use(
 app.use(express.json({ limit: '100kb' }));
 app.use(cookieParser());
 
-// Rota de Health Check
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// Registro das rotas
 app.use('/api/auth', authRoutes);
 app.use('/api', registerRoutes);
 app.use('/api/users', userRoutes);
@@ -75,7 +85,6 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/checkout', orderRoutes);
 app.use('/api/cart', cartRoutes);
 
-// Middleware global de tratamento de erro
 app.use(errorHandler);
 
 module.exports = app;

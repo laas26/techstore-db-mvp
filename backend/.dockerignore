@@ -4,6 +4,8 @@ npm-debug.log
 .gitignore
 .env
 .env.example
+.jwt_secret
+data
 *.md
 tests
 coverage

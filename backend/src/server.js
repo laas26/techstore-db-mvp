@@ -1,26 +1,26 @@
-// src/server.js
+require('dotenv').config();
+
 const PORT = process.env.PORT || 3000;
+const RETRY_DELAY_MS = 3000;
 
 async function iniciarServidor() {
   const { inicializarBanco } = require('./database/connection');
-  
-  // DevOps: Se o banco falhar por timing, espera 3 segundos e tenta de novo antes de quebrar
+
   try {
     await inicializarBanco();
   } catch (error) {
-    console.log('⏳ Banco de dados ainda inicializando... Tentando novamente em 3 segundos...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    console.error('Banco indisponível. Nova tentativa em 3 segundos.', error);
+    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
     await inicializarBanco();
   }
 
   const app = require('./app');
-
   app.listen(PORT, () => {
-    console.log(`🚀 Servidor rodando na porta ${PORT}`);
+    console.log(`Servidor rodando na porta ${PORT}`);
   });
 }
 
 iniciarServidor().catch((error) => {
-  console.error('❌ Erro crítico ao iniciar o servidor:', error);
+  console.error('Erro crítico ao iniciar o servidor:', error);
   process.exitCode = 1;
 });

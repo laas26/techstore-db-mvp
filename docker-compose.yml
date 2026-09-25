@@ -10,16 +10,13 @@ services:
     # As credenciais vêm do .env na raiz quando existir; os valores após
     # ":-" são o padrão embutido, então `docker compose up -d` funciona
     # do zero sem nenhum arquivo .env.
-    # NOTA: o Postgres tem um único superusuário (POSTGRES_USER), por isso
-    # não existe variável de "root" separada como existia no MariaDB.
     environment:
       POSTGRES_DB: ${DB_NAME:-techstore_v2}
       POSTGRES_USER: ${DB_USER:-techstore_user}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-techstore_password}
     ports:
-      # 5434 na máquina host (a 5432 já está com outro projeto);
-      # 5432 interno — é a porta que o backend usa via db:5432 na rede do compose
-      - "5434:5432"
+      # Exposição limitada ao host para desenvolvimento e diagnóstico.
+      - "127.0.0.1:5434:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     # Garante que o banco está totalmente pronto antes de liberar o backend
@@ -41,13 +38,20 @@ services:
     container_name: techstore_backend
     restart: unless-stopped
     ports:
-      - "3002:3000"
+      - "127.0.0.1:3002:3000"
     # Injeção de variáveis de ambiente e segredos centralizados.
     # Cada ${VAR:-padrão} usa o .env da raiz se existir, senão o padrão —
     # ninguém precisa criar arquivos para rodar o projeto do zero.
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=${NODE_ENV:-development}
       - PORT=3000
+      - TRUST_PROXY=${TRUST_PROXY:-1}
+      - LOGIN_RATE_LIMIT=${LOGIN_RATE_LIMIT:-5}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3001}
+      - FRONTEND_ORIGINS=${FRONTEND_ORIGINS:-http://localhost,http://localhost:3001,http://localhost:3002,http://localhost:5173}
+      - SEED_ON_START=${SEED_ON_START:-true}
+      - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:-}
+      - SEED_CLIENTE_PASSWORD=${SEED_CLIENTE_PASSWORD:-}
       # Segredo de sessão sem valor literal no versionado: quando vazio, o
       # entrypoint gera um na primeira subida e guarda em arquivo local.
       - JWT_SECRET=${JWT_SECRET:-}
@@ -60,6 +64,12 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules # Impede que os módulos locais do host corrompam o container
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     # Só inicia após o banco passar no healthcheck com sucesso
     depends_on:
       db:
@@ -78,9 +88,10 @@ services:
     container_name: techstore_frontend
     restart: unless-stopped
     ports:
-      - "3001:8080"
+      - "127.0.0.1:3001:8080"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - techstore_net
 
@@ -95,7 +106,6 @@ networks:
 # VOLUMES
 # ==========================================
 volumes:
-  # pg_data: volume dedicado do Postgres. Nome antigo (db_data) guardava os
-  # dados do MariaDB — reutilizá-lo faria o Postgres recusar a inicialização.
+  # Volume persistente dos dados do PostgreSQL.
   pg_data:
     driver: local

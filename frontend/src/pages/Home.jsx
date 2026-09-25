@@ -15,6 +15,9 @@ export default function Home() {
     setCategoriaAtiva,
     setPrecoMaximo,
     adicionarQuantidade,
+    carregandoCatalogo,
+    erroCatalogo,
+    recarregarCatalogo,
     erroCarrinho,
   } = useHome();
 
@@ -71,11 +74,28 @@ export default function Home() {
                 {erroCarrinho}
               </p>
             )}
-            <ProductList
-              produtos={produtosFiltrados}
-              quantidades={quantidades}
-              onAdicionarProduto={adicionarQuantidade}
-            />
+            {carregandoCatalogo ? (
+              <p role="status" style={styles.catalogStatus}>
+                Carregando catálogo...
+              </p>
+            ) : erroCatalogo ? (
+              <div role="alert" style={styles.catalogError}>
+                <span>{erroCatalogo}</span>
+                <button
+                  type="button"
+                  onClick={recarregarCatalogo}
+                  style={styles.retryButton}
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            ) : (
+              <ProductList
+                produtos={produtosFiltrados}
+                quantidades={quantidades}
+                onAdicionarProduto={adicionarQuantidade}
+              />
+            )}
           </div>
         </div>
       </main>
@@ -83,3 +103,34 @@ export default function Home() {
     </div>
   );
 }
+
+const styles = {
+  catalogStatus: {
+    margin: 0,
+    padding: '24px',
+    border: '1px solid #E2E8F0',
+    borderRadius: '8px',
+    background: '#FFFFFF',
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  catalogError: {
+    display: 'grid',
+    gap: '12px',
+    justifyItems: 'center',
+    padding: '24px',
+    border: '1px solid #FCA5A5',
+    borderRadius: '8px',
+    background: '#FEF2F2',
+    color: '#B91C1C',
+    textAlign: 'center',
+  },
+  retryButton: {
+    padding: '8px 14px',
+    border: 0,
+    borderRadius: '6px',
+    background: '#2563EB',
+    color: '#FFFFFF',
+    cursor: 'pointer',
+  },
+};

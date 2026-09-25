@@ -1,12 +1,5 @@
-const fs = require('node:fs');
-const path = require('node:path');
 const request = require('supertest');
-const app = require('../src/app'); // Importa o app Express configurado
-
-const sessoesRevogadasPath = path.join(
-  __dirname,
-  '../data/sessoes_revogadas.json',
-);
+const app = require('../src/app');
 
 describe('Fluxo de Autenticação (Auth Integration Tests)', () => {
   let cookieHeader = '';
@@ -14,7 +7,7 @@ describe('Fluxo de Autenticação (Auth Integration Tests)', () => {
   test('POST /api/auth/login - Deve autenticar com sucesso e retornar o cookie de sessão', async () => {
     const response = await request(app).post('/api/auth/login').send({
       email: 'cliente@techstore.local', // Certifique-se de usar um e-mail válido que exista no seu banco/mock
-      senha: 'senha123', // Senha correspondente
+      senha: 'Cliente@123',
     });
 
     expect(response.status).toBe(200);
@@ -42,7 +35,7 @@ describe('Fluxo de Autenticação (Auth Integration Tests)', () => {
       .send({ email: 'cliente@techstore.local' });
     const respostaEmailInvalido = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'email-invalido', senha: 'senha123' });
+      .send({ email: 'email-invalido', senha: 'Cliente@123' });
 
     expect(respostaSemSenha.status).toBe(400);
     expect(respostaEmailInvalido.status).toBe(400);
@@ -74,14 +67,7 @@ describe('Fluxo de Autenticação (Auth Integration Tests)', () => {
 
     expect(respostaRotaPrivada.status).toBe(401);
 
-    const sessoesRevogadas = JSON.parse(
-      fs.readFileSync(sessoesRevogadasPath, 'utf8'),
-    );
-    expect(sessoesRevogadas).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ jti: expect.any(String) }),
-      ]),
-    );
+    expect(respostaRotaPrivada.body).toEqual({ erro: 'Sessão invalidada.' });
   });
 
   test('POST /api/auth/logout - Deve retornar 401 sem sessão', async () => {
