@@ -5,9 +5,10 @@
 | Campo                             | Descrição                                                                                             |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | **Projeto**                       | TechStore                                                                                             |
-| **Tipo**                          | MVP                                                                                                   |
+| **Tipo**                          | MVP DevOps                                                                                            |
+| **Versão do MVP**                 | 1.0.0 — entrega final                                                                                 |
 | **Área**                          | Persistência e Gestão de Dados                                                                        |
-| **Integrantes**                   | Lays Gomes, [Nome 2], [Nome 3], [Nome 4]                                                              |
+| **Integrantes**                   | Lays Gomes, Fellype Augusto, Ivan Teotônio, Victor Kazu                                               |
 | **Objetivo**                      | Demonstrar persistência, resiliência, consistência transacional e automação de operação em containers |
 
 ### Sobre o documento
@@ -119,18 +120,18 @@ Além desses componentes, a solução possui mecanismos destinados a aumentar a 
 A aplicação utiliza uma arquitetura baseada em containers Docker, com os serviços conectados por uma rede interna.
 ```text
 ┌────────────────────────────────────────────────────────────────────┐
-│                       REDE DOCKER (bridge)                          │
-│                                                                    │
+│                       REDE DOCKER (bridge)                        │
+│                                                                   │
 │  ┌──────────────┐       ┌──────────────┐       ┌──────────────┐   │
 │  │   Frontend   │  /api │    Backend   │ Prisma│  PostgreSQL  │   │
-│  │  React + Vite│──────▶│  Node.js +   │──────▶│      15      │   │
+│  │  React + Vite│──────▶│  Node.js +  │──────▶│      15      │   │
 │  │  Nginx :8080 │       │   Express    │       │    :5432     │   │
 │  │  Host :3001  │       │  Host :3002  │       └──────┬───────┘   │
 │  └──────────────┘       └──────────────┘              │           │
-│                                                     ┌────▼─────┐     │
-│                                                     │ pg_data  │     │
-│                                                     │  volume  │     │
-│                                                     └──────────┘     │
+│                                                     ┌────▼─────┐  │
+│                                                     │ pg_data  │  │
+│                                                     │  volume  │  │
+│                                                     └──────────┘  │
 └────────────────────────────────────────────────────────────────────┘
              ▲
              │ http://localhost:3001
@@ -197,6 +198,8 @@ Seus dados são armazenados no volume Docker `pg_data`, permitindo que continuem
 
 A inicialização da aplicação segue a seguinte sequência:
 
+<div align="center">
+
 ```text
 PostgreSQL
     ↓
@@ -214,6 +217,8 @@ Backend
     ↓
 Frontend
 ```
+
+</div>
 
 O banco executa o `pg_isready` para verificar sua disponibilidade.
 
@@ -674,6 +679,8 @@ As principais limitações identificadas são:
 * não existe observabilidade avançada;
 * a validação de lint na CI ainda não é bloqueante.
 
+As telas administrativas ainda não implementadas, a simulação de pagamento e as evoluções futuras estão fora do escopo desta versão. Elas permanecem documentadas apenas como possibilidades de evolução.
+
 Essas limitações estão relacionadas ao escopo do MVP e devem ser consideradas antes de uma utilização em ambiente real.
 
 ---
@@ -709,6 +716,10 @@ Implementar paginação, índices adicionais, filtros, soft delete e trilha de a
 ### 17.7 Evolução do catálogo
 
 Adicionar recursos como SKU e padronização das categorias, mantendo a consistência entre administração, vitrine e banco.
+
+### 17.8 Avaliação de armazenamento não relacional
+
+Avaliar o uso complementar de bancos de dados não relacionais para aplicações específicas, como cache, busca, auditoria, histórico de eventos ou recomendações. O PostgreSQL permanece como banco transacional principal, responsável pela consistência de usuários, carrinhos, estoque e pedidos.
 
 ---
 
