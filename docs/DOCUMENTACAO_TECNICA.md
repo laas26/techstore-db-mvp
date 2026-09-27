@@ -253,7 +253,7 @@ erDiagram
     USUARIOS ||--o{ CARRINHOS : possui
     USUARIOS ||--o{ PEDIDOS : realiza
     PRODUTOS ||--o{ CARRINHOS : referenciado
-    PEDIDOS ||--|{ PEDIDO_ITENS : contem
+    PEDIDOS ||--|{ PEDIDO_ITENS : contém
     PRODUTOS ||--o{ PEDIDO_ITENS : referenciado
 
     USUARIOS {
@@ -262,6 +262,8 @@ erDiagram
         string email UK
         string senhaHash
         string role
+        string tokenRedefinicaoHash
+        datetime tokenRedefinicaoExpiraEm
     }
 
     PRODUTOS {
@@ -316,7 +318,7 @@ O diagrama apresenta os relacionamentos funcionais principais. As regras de unic
 | `pedido_itens`      | Armazena produtos, quantidades e preços dos pedidos                |
 | `sessoes_revogadas` | Armazena sessões ou tokens invalidados                             |
 
-A tabela `usuarios` também armazena, de forma opcional, o hash do token de redefinição de senha e seu respectivo tempo de expiração.
+Os campos `tokenRedefinicaoHash` e `tokenRedefinicaoExpiraEm` da tabela `usuarios` são opcionais e só são preenchidos durante um fluxo de recuperação de senha.
 
 ### Principais relacionamentos
 
@@ -336,6 +338,31 @@ O banco possui regras para garantir:
 * preços e estoques não negativos;
 * chave de idempotência única por usuário;
 * preservação do preço e nome do produto no momento da compra.
+
+As regras de unicidade são garantidas por constraints `UNIQUE` do PostgreSQL. As
+regras de quantidade e valor são garantidas por constraints `CHECK` aplicadas
+diretamente no banco, e não apenas por validação na aplicação:
+
+| Constraint                      | Tabela         | Regra aplicada             |
+| ------------------------------- | -------------- | -------------------------- |
+| `produtos_stock_nonnegative`    | `produtos`     | `stock >= 0`               |
+| `produtos_preco_nonnegative`    | `produtos`     | `preco >= 0`               |
+| `carrinhos_quantidade_positive` | `carrinhos`    | `quantidade > 0`           |
+| `pedido_itens_quantidade_positive` | `pedido_itens` | `quantidade > 0`         |
+| `pedidos_total_nonnegative`     | `pedidos`      | `total >= 0`               |
+
+Dessa forma, uma escrita que viole qualquer uma das regras é rejeitada pelo
+PostgreSQL mesmo que a checagem tenha sido contornada em outra camada da
+aplicação.
+
+### Índices do modelo
+
+| Tabela              | Índice                        | Finalidade                                     |
+| ------------------- | ----------------------------- | ---------------------------------------------- |
+| `pedidos`           | `(usuario_id, created_at)`    | listar pedidos de um usuário em ordem cronológica |
+| `pedido_itens`      | `(prodido_id)`                | consulta de produtos vendidos em um pedido     |
+| `sessoes_revogadas` | `(jti)`                       | verificação de sessão revogada no login        |
+| `sessoes_revogadas` | `(expiraEm)`                  | varredura dos tokens expirados                 |
 
 ---
 
@@ -688,6 +715,8 @@ As principais limitações identificadas são:
 * algumas telas relacionadas a pedidos, usuários e administração ainda estão incompletas;
 * não existe observabilidade avançada;
 * o envio real de e-mail não está implementado; o link de redefinição de senha é exibido no terminal do backend;
+* a limpeza dos tokens de sessão revogados é oportunista: ocorre no momento em que uma nova sessão é revogada, e não em rotina agendada, portanto registros expirados permanecem na tabela enquanto não houver novas revogações;
+* o limite de tentativas de login é de 5 falhas a cada 15 minutos por padrão; o valor é configurável pela variável `LOGIN_RATE_LIMIT` e logins bem-sucedidos não consomem a cota;
 * a validação de lint na CI é informativa e não bloqueia o pipeline devido à dívida de formatação existente.
 
 As telas administrativas ainda não implementadas, a simulação de pagamento e as evoluções futuras estão fora do escopo desta versão. Elas permanecem documentadas apenas como possibilidades de evolução.
@@ -722,7 +751,7 @@ Adicionar verificações prévias, detecção de dados incompatíveis, deduplica
 
 ### 17.6 Performance e auditoria
 
-Implementar paginação, índices adicionais, filtros, soft delete e trilha de auditoria.
+Implementar paginação, filtros, soft delete e trilha de auditoria, além de novos índices para as consultas que surgirem com o uso real. O modelo atual já possui quatro índices, descritos na seção 8, que cobrem pedidos por usuário, itens por produto e verificação de sessões revogadas.
 
 ### 17.7 Evolução do catálogo
 
