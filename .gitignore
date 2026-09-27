@@ -69,11 +69,6 @@ web_modules/
 .env
 .env.*
 !.env.example
-.jwt_secret
-**/.jwt_secret
-backend/data/
-banco_dados/
-backups/
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache

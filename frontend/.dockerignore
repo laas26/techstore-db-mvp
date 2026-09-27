@@ -1,8 +1,0 @@
-# Dependencias e artefatos locais nao devem entrar na imagem Docker.
-node_modules
-dist
-.git
-.gitignore
-.env
-.env.example
-*.md
