@@ -6,7 +6,7 @@
 
 ---
 
-## 🎯 O Problema & A Solução
+## 📌 O Problema & A Solução
 
 O desafio principal era garantir a persistência e a resiliência de dados críticos (usuários, autenticação, produtos) sem depender do ciclo de vida efémero dos contêineres.
 

@@ -6,7 +6,7 @@
 | --------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | **Projeto**                       | TechStore                                                                                             |
 | **Tipo**                          | MVP DevOps                                                                                            |
-| **Versão do MVP**                 | 1.0.0 — entrega final                                                                                 |
+| **Versão do MVP**                 | 1.0.0 - Entrega final                                                                                 |
 | **Área**                          | Persistência e Gestão de Dados                                                                        |
 | **Integrantes**                   | Lays Gomes, Fellype Augusto, Ivan Teotônio, Victor Kazu                                               |
 | **Objetivo**                      | Demonstrar persistência, resiliência, consistência transacional e automação de operação em containers |
@@ -118,25 +118,29 @@ Além desses componentes, a solução possui mecanismos destinados a aumentar a 
 ## 5. Arquitetura da Solução
 
 A aplicação utiliza uma arquitetura baseada em containers Docker, com os serviços conectados por uma rede interna.
+
+
 ```text
 ┌────────────────────────────────────────────────────────────────────┐
-│                       REDE DOCKER (bridge)                        │
-│                                                                   │
-│  ┌──────────────┐       ┌──────────────┐       ┌──────────────┐   │
-│  │   Frontend   │  /api │    Backend   │ Prisma│  PostgreSQL  │   │
-│  │  React + Vite│──────▶│  Node.js +  │──────▶│      15      │   │
-│  │  Nginx :8080 │       │   Express    │       │    :5432     │   │
-│  │  Host :3001  │       │  Host :3002  │       └──────┬───────┘   │
-│  └──────────────┘       └──────────────┘              │           │
-│                                                     ┌────▼─────┐  │
-│                                                     │ pg_data  │  │
-│                                                     │  volume  │  │
-│                                                     └──────────┘  │
+│                       REDE DOCKER (bridge)                         │
+│                                                                    │
+│  ┌──────────────┐       ┌──────────────┐       ┌──────────────┐    │
+│  │   Frontend   │  /api │    Backend   │ Prisma│  PostgreSQL  │    │
+│  │  React + Vite│──────▶│  Node.js +  │──────▶│      15      │    │
+│  │  Nginx :8080 │       │   Express    │       │    :5432     │    │
+│  │  Host :3001  │       │  Host :3002  │       └──────┬───────┘    │
+│  └──────────────┘       └──────────────┘              │__          │
+│                                                     ┌────▼─────┐   │
+│                                                     │ pg_data  │   │
+│                                                     │  volume  │   │
+│                                                     └──────────┘   │
 └────────────────────────────────────────────────────────────────────┘
+
              ▲
              │ http://localhost:3001
         Navegador no host
 ```
+
 
 O navegador acessa o frontend por meio da porta `3001`. O Nginx encaminha as requisições que utilizam o prefixo `/api/` para o backend.
 
@@ -198,6 +202,7 @@ Seus dados são armazenados no volume Docker `pg_data`, permitindo que continuem
 
 A inicialização da aplicação segue a seguinte sequência:
 
+
 <div align="center">
 
 ```text
@@ -217,7 +222,6 @@ Backend
     ↓
 Frontend
 ```
-
 </div>
 
 O banco executa o `pg_isready` para verificar sua disponibilidade.
@@ -677,7 +681,7 @@ As principais limitações identificadas são:
 * não existe ambiente de staging ou produção;
 * algumas telas relacionadas a pedidos, usuários e administração ainda estão incompletas;
 * não existe observabilidade avançada;
-* a validação de lint na CI ainda não é bloqueante.
+* a validação de lint na CI é informativa e não bloqueia o pipeline devido à dívida de formatação existente.
 
 As telas administrativas ainda não implementadas, a simulação de pagamento e as evoluções futuras estão fora do escopo desta versão. Elas permanecem documentadas apenas como possibilidades de evolução.
 
