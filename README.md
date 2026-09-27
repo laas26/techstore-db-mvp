@@ -1,12 +1,12 @@
 # TechStore - MVP de Persistência e Gestão de Dados
 
-> Aplicação web com arquitetura resiliente onde os dados sobrevivem à destruição e reinicialização dos contêineres.
+> E-commerce de produtos eletrônicos desenvolvido como MVP de DevOps, com arquitetura resiliente para preservar os dados após a destruição e a recriação dos contêineres.
 
 [![CI Pipeline](https://github.com/laas26/techstore-db-mvp/actions/workflows/ci.yml/badge.svg)](https://github.com/laas26/techstore-db-mvp/actions) ![Version](https://img.shields.io/badge/version-1.0.0--mvp-000000?style=flat)
 
 ---
 
-## 🎯 O Problema & A Solução
+## 📌 O Problema & A Solução
 
 O desafio principal era garantir a persistência e a resiliência de dados críticos (usuários, autenticação, produtos) sem depender do ciclo de vida efémero dos contêineres.
 
