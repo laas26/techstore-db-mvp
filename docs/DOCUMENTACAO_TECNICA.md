@@ -190,6 +190,8 @@ A aplicação está organizada em camadas:
 
 A autenticação utiliza JWT armazenado no cookie `sessionToken`.
 
+A aplicação também oferece recuperação de senha. O backend gera um token aleatório, armazena apenas o hash do token no banco com expiração de uma hora e, como não há serviço de e-mail configurado no MVP, registra o link de redefinição no log do backend.
+
 ### 6.3 Banco de Dados
 
 O **PostgreSQL 15** é utilizado como armazenamento principal da aplicação.
@@ -313,6 +315,8 @@ O diagrama apresenta os relacionamentos funcionais principais. As regras de unic
 | `pedidos`           | Armazena pedidos, valores, status, entrega e pagamento             |
 | `pedido_itens`      | Armazena produtos, quantidades e preços dos pedidos                |
 | `sessoes_revogadas` | Armazena sessões ou tokens invalidados                             |
+
+A tabela `usuarios` também armazena, de forma opcional, o hash do token de redefinição de senha e seu respectivo tempo de expiração.
 
 ### Principais relacionamentos
 
@@ -586,10 +590,11 @@ A suíte contempla cenários relacionados a:
 * concorrência;
 * oversell;
 * idempotência;
+* recuperação e redefinição de senha;
 * readiness;
 * snapshots.
 
-**Resultado:** 9 suítes e 32 testes passando.
+**Resultado:** 10 suítes e 35 testes passando.
 
 ### 14.2 Testes do Frontend
 
@@ -653,6 +658,7 @@ Os testes e validações realizados demonstraram que o MVP apresenta os seguinte
 * backup e restauração;
 * verificação automatizada da persistência;
 * integração contínua;
+* recuperação e redefinição de senha com token temporário;
 * smoke test da stack;
 * layout responsivo implementado para telas pequenas, com menu móvel e adaptação dos fluxos principais.
 
@@ -681,6 +687,7 @@ As principais limitações identificadas são:
 * não existe ambiente de staging ou produção;
 * algumas telas relacionadas a pedidos, usuários e administração ainda estão incompletas;
 * não existe observabilidade avançada;
+* o envio real de e-mail não está implementado; o link de redefinição de senha é exibido no terminal do backend;
 * a validação de lint na CI é informativa e não bloqueia o pipeline devido à dívida de formatação existente.
 
 As telas administrativas ainda não implementadas, a simulação de pagamento e as evoluções futuras estão fora do escopo desta versão. Elas permanecem documentadas apenas como possibilidades de evolução.
