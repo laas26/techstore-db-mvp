@@ -1,0 +1,120 @@
+# ==============================================================================
+# CI — Validação Contínua do MVP TechStore
+#
+# Propósito:
+#   Garantir a qualidade do código-fonte a cada push/PR para main ou develop.
+#   - Backend: Valida esquema do Prisma, executa migrações e seed contra
+#     PostgreSQL e roda a suíte de testes e linter.
+#   - Frontend: Instala dependências, roda testes unitários (Vitest), gera o build
+#     de produção e valida o código com Biome.
+# ==============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  # ==========================================
+  # Backend (Node.js + Express + Prisma)
+  # ==========================================
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: techstore_v2
+          POSTGRES_USER: techstore_user
+          POSTGRES_PASSWORD: techstore_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U techstore_user -d techstore_v2"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+          --health-start-period=20s
+
+    # Credenciais fictícias (mock) exclusivas do CI efémero — usar GitHub Secrets em produção.
+    env:
+      NODE_ENV: test
+      JWT_SECRET: ci-only-secret-nao-usar-em-producao
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USER: techstore_user
+      DB_PASSWORD: techstore_password
+      DB_NAME: techstore_v2
+      DATABASE_URL: postgresql://techstore_user:techstore_password@127.0.0.1:5432/techstore_v2
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20 com cache Yarn
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: backend/yarn.lock
+
+      - name: Instalar dependências (reproduzível)
+        run: yarn install --frozen-lockfile
+
+      - name: Validar esquema Prisma
+        run: npx prisma validate
+
+      - name: Gerar Prisma Client
+        run: npx prisma generate
+
+      - name: Aplicar migrações do banco
+        run: npx prisma migrate deploy
+
+      - name: Popular banco (seed idempotente)
+        run: yarn seed
+
+      - name: Testes Jest (bloqueante)
+        run: yarn test --runInBand
+
+      - name: Lint Biome (não-bloqueante — repo ainda não conforme)
+        run: yarn lint
+        continue-on-error: true
+
+  # ==========================================
+  # Frontend (React + Vite)
+  # ==========================================
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20 com cache Yarn
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Instalar dependências (reproduzível)
+        run: yarn install --frozen-lockfile --ignore-engines
+
+      - name: Testes Vitest
+        run: yarn vitest run
+
+      - name: Build de produção
+        run: yarn build
+
+      - name: Lint Biome (não-bloqueante — repo ainda não conforme)
+        run: yarn lint
+        continue-on-error: true
