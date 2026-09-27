@@ -1,0 +1,35 @@
+# ==============================================================================
+# Proteção da main
+#
+# Propósito:
+#   Impedir que mudanças cheguem à main sem passar pela develop. Todo Pull
+#   Request aberto contra a main deve ter a develop como branch de origem,
+#   preservando o fluxo branch de trabalho -> develop -> main.
+#
+#   O job é reprovado quando a origem do PR é diferente de develop, o que
+#   bloqueia o merge caso este workflow seja exigido como verificação
+#   obrigatória nas regras da main.
+# ==============================================================================
+
+name: Proteção da main
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  origem-permitida:
+    name: Origem do PR permitida
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verificar branch de origem
+        run: |
+          ORIGEM="${{ github.head_ref }}"
+          if [ "$ORIGEM" != "develop" ]; then
+            echo "::error::Merge para a main deve partir da develop. Origem recebida: ${ORIGEM:-<desconhecida>}."
+            exit 1
+          fi
+          echo "Origem permitida: develop"
