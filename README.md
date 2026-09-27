@@ -4,6 +4,15 @@
 
 [![CI Pipeline](https://github.com/laas26/techstore-db-mvp/actions/workflows/ci.yml/badge.svg)](https://github.com/laas26/techstore-db-mvp/actions) ![Version](https://img.shields.io/badge/version-1.0.0--mvp-000000?style=flat)
 
+<p align="center">
+  <img
+    src="screenshots/persistencia.gif"
+    alt="Demonstração da persistência dos dados após a recriação dos containers"
+    width="900"
+    style="max-width: 100%; height: auto;"
+  >
+</p>
+
 ---
 
 ## 📌 O Problema & A Solução
