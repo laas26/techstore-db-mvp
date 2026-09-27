@@ -1,0 +1,4 @@
+# .github/CODEOWNERS
+
+# Todos os Pull Requests precisam da aprovação do responsável principal.
+* @laas26
