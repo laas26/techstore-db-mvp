@@ -1,6 +1,6 @@
 # TechStore - MVP de Persistência e Gestão de Dados
 
-> E-commerce de produtos eletrônicos desenvolvido como MVP de DevOps, com arquitetura resiliente para preservar os dados após a destruição e a recriação dos contêineres.
+> E-commerce de produtos eletrônicos desenvolvido como MVP de DevOps, com dados de demonstração fictícios e arquitetura resiliente para preservar os dados após a destruição e a recriação dos contêineres.
 
 [![CI Pipeline](https://github.com/laas26/techstore-db-mvp/actions/workflows/ci.yml/badge.svg)](https://github.com/laas26/techstore-db-mvp/actions) ![Version](https://img.shields.io/badge/version-1.0.0--mvp-000000?style=flat)
 
