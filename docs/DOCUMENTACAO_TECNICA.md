@@ -173,7 +173,7 @@ O Nginx possui duas responsabilidades principais:
 
 Dessa forma, o navegador utiliza uma origem única para acessar a aplicação.
 
-A interface também utiliza media queries e breakpoints para adaptar a navbar, a vitrine, o carrinho, o checkout, os formulários e o painel administrativo a telas menores. Em larguras móveis, a navegação principal é substituída por um menu acessível por botão.
+A interface é **[responsiva](../screenshots/checkout-mobile.jpeg)** e utiliza media queries e breakpoints para adaptar a navbar, a vitrine, o carrinho, o checkout, os formulários e o painel administrativo a telas menores. Em larguras móveis, a navegação principal é substituída por um menu acessível por botão.
 
 ### 6.2 Backend
 
