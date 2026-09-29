@@ -7,7 +7,7 @@ versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
-## [1.0.0] - 2026-09-28
+## [1.0.0] - 2026-09-29
 
 Entrega final do MVP de persistência e gestão de dados do TechStore, e-commerce
 de demonstração com dados fictícios. A aplicação roda em contêineres e mantém os
@@ -70,3 +70,6 @@ dados em um volume dedicado, que sobrevive à recriação da stack.
 - `build.md` e a página de support, que ficaram sem função no MVP e foram
   removidos antes da entrega.
 - READMEs das subpastas de backend e frontend, consolidados na documentação raiz.
+
+[Não publicado]: https://github.com/laas26/techstore-db-mvp/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/laas26/techstore-db-mvp/releases/tag/v1.0.0
