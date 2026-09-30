@@ -19,7 +19,7 @@ dados em um volume dedicado, que sobrevive à recriação da stack.
   backend, e React com Vite no frontend servido por Nginx.
 - Volume nomeado `pg_data`, que preserva os dados fora do ciclo de vida dos
   contêineres.
-- Rede dedicada `techstore_net`, sem exposição da porta do banco ao host.
+- Rede dedicada `techstore_net`, com a porta do banco restrita ao localhost.
 - `entrypoint.sh` com bootstrap automatizado: aplica migrações, popula o banco e
   só libera o tráfego após o healthcheck do PostgreSQL.
 - Healthcheck e readiness da API, com sonda `pg_isready` para evitar corrida na
